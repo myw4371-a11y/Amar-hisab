@@ -1,1 +1,15 @@
-
+{
+  "name": "Amar Hishab PRO",
+  "short_name": "হিসাব PRO",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#6366f1",
+  "theme_color": "#6366f1",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/2654/2654300.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
