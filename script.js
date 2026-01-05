@@ -1,4 +1,4 @@
-// ১. Firebase Config
+// ১. Firebase Configuration
 const firebaseConfig = {
   apiKey: "AIzaSyAyNkZvxqdPsa2E2SXnYVsZe1wENJF1I7E",
   authDomain: "amar-hishab-pro.firebaseapp.com",
@@ -9,19 +9,34 @@ const firebaseConfig = {
   databaseURL: "https://amar-hishab-pro-default-rtdb.asia-southeast1.firebasedatabase.app/"
 };
 
-// ২. Initialize
 firebase.initializeApp(firebaseConfig);
 const rdb = firebase.database();
 let currentUser = localStorage.getItem('activeUserPRO');
 let currentFilter = 'home';
+let deferredPrompt;
 
-// --- Auth Functions ---
+// --- ২. Install Logic (PWA) ---
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    document.getElementById('install-banner').classList.remove('hidden');
+});
+
+async function installPWA() {
+    if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') document.getElementById('install-banner').classList.add('hidden');
+        deferredPrompt = null;
+    }
+}
+
+// --- ৩. Auth Logic ---
 function togglePass(id, btn) {
     const input = document.getElementById(id);
     const icon = btn.querySelector('i');
     input.type = input.type === "password" ? "text" : "password";
-    icon.classList.toggle('fa-eye');
-    icon.classList.toggle('fa-eye-slash');
+    icon.classList.toggle('fa-eye'); icon.classList.toggle('fa-eye-slash');
 }
 
 function toggleAuth(isReg) {
@@ -47,22 +62,17 @@ async function handleRegister() {
         password: p1,
         joinDate: new Date().toLocaleDateString('bn-BD')
     });
-    
     login(user);
 }
 
 async function handleLogin() {
     const user = document.getElementById('login-user').value.trim();
     const pass = document.getElementById('login-pass').value;
-
     if(!user || !pass) return showError("সব তথ্য দিন");
 
     const snapshot = await rdb.ref('users/' + user).once('value');
-    if(snapshot.exists() && snapshot.val().password === pass) {
-        login(user);
-    } else {
-        showError("সঠিক পাসওয়ার্ড দিন অথবা ইউজার নেম চেক করুন");
-    }
+    if(snapshot.exists() && snapshot.val().password === pass) login(user);
+    else showError("ভুল পাসওয়ার্ড বা ইউজার নেম");
 }
 
 function login(user) {
@@ -72,20 +82,17 @@ function login(user) {
 
 function showError(m) {
     const el = document.getElementById('auth-error');
-    el.innerText = m;
-    el.classList.remove('hidden');
+    el.innerText = m; el.classList.remove('hidden');
 }
 
-// --- Data Functions ---
+// --- ৪. Core Hishab Logic ---
 async function save(type) {
     const desc = document.getElementById('desc').value.trim();
     const amt = document.getElementById('amt').value;
     if(!desc || amt <= 0) return;
 
     const data = {
-        desc,
-        amt: Number(amt),
-        type,
+        desc, amt: Number(amt), type,
         date: new Date().toISOString().split('T')[0],
         ts: Date.now()
     };
@@ -98,7 +105,6 @@ async function save(type) {
 
 async function loadData(filter = 'home') {
     currentFilter = filter;
-    const list = document.getElementById('data-list');
     const snap = await rdb.ref('records/' + currentUser).once('value');
     const val = snap.val();
     const records = val ? Object.values(val) : [];
@@ -106,79 +112,64 @@ async function loadData(filter = 'home') {
     let filtered = [];
     const today = new Date().toISOString().split('T')[0];
 
-    // Filter Logic
     if(filter === 'today') filtered = records.filter(r => r.date === today);
     else if(filter === 'week') filtered = records.filter(r => r.ts >= (Date.now() - 7*86400000));
     else if(filter === 'month') filtered = records.filter(r => r.date.startsWith(today.substring(0,7)));
-    else if(filter === 'lastMonth') {
-        let lm = new Date(); lm.setMonth(lm.getMonth()-1);
-        filtered = records.filter(r => r.date.startsWith(lm.toISOString().substring(0,7)));
-    } else filtered = records;
+    else filtered = records;
 
-    // Render UI
+    const list = document.getElementById('data-list');
     list.innerHTML = "";
-    let iSum = 0, eSum = 0;
+    let iS = 0, eS = 0;
 
     filtered.sort((a,b) => b.ts - a.ts).forEach(r => {
-        if(r.type === 'income') iSum += r.amt; else eSum += r.amt;
+        if(r.type === 'income') iS += r.amt; else eS += r.amt;
         list.innerHTML += `
             <div class="bg-white p-5 rounded-[2rem] shadow-sm flex justify-between items-center animate__animated animate__fadeInUp border-l-4 ${r.type==='income'?'border-emerald-500':'border-rose-500'}">
-                <div class="flex items-center gap-4">
-                    <div class="w-10 h-10 rounded-2xl flex items-center justify-center ${r.type==='income'?'bg-emerald-50 text-emerald-500':'bg-rose-50 text-rose-500'}">
-                        <i class="fa-solid ${r.type==='income'?'fa-plus':'fa-minus'} text-xs"></i>
-                    </div>
-                    <div>
-                        <p class="font-bold text-slate-800 text-sm">${r.desc}</p>
-                        <p class="text-[9px] text-slate-400 font-bold uppercase tracking-widest">${r.date}</p>
-                    </div>
+                <div>
+                    <p class="font-bold text-slate-800 text-sm">${r.desc}</p>
+                    <p class="text-[9px] text-slate-400 font-bold uppercase">${r.date}</p>
                 </div>
                 <p class="text-lg font-black ${r.type==='income'?'text-emerald-500':'text-rose-500'}">৳${r.amt}</p>
             </div>`;
     });
 
-    document.getElementById('sum-in').innerText = iSum.toLocaleString('bn-BD');
-    document.getElementById('sum-ex').innerText = eSum.toLocaleString('bn-BD');
-    document.getElementById('total-balance').innerText = (iSum - eSum).toLocaleString('bn-BD');
+    document.getElementById('sum-in').innerText = iS;
+    document.getElementById('sum-ex').innerText = eS;
+    document.getElementById('total-balance').innerText = iS - eS;
     document.getElementById('view-date').innerText = filter === 'home' ? "সব সময়" : filter;
     if(document.getElementById('sidebar').classList.contains('active')) toggleSidebar();
 }
 
-// --- UI Helpers ---
-function toggleSidebar() {
-    document.getElementById('sidebar').classList.toggle('active');
-    document.getElementById('sidebar-overlay').classList.toggle('hidden');
+// --- ৫. Utility ---
+function toggleSidebar() { 
+    document.getElementById('sidebar').classList.toggle('active'); 
+    document.getElementById('sidebar-overlay').classList.toggle('hidden'); 
 }
-
+function logout() { localStorage.removeItem('activeUserPRO'); location.reload(); }
+function closeProfile() { document.getElementById('profile-modal').classList.add('hidden'); }
 async function openProfile() {
     const snap = await rdb.ref('users/' + currentUser).once('value');
-    const u = snap.val();
     document.getElementById('prof-user').innerText = currentUser;
-    document.getElementById('prof-date').innerText = "Joined: " + u.joinDate;
+    document.getElementById('prof-date').innerText = "Joined: " + snap.val().joinDate;
     document.getElementById('profile-modal').classList.remove('hidden');
 }
-
-function closeProfile() { document.getElementById('profile-modal').classList.add('hidden'); }
-
-function logout() { localStorage.removeItem('activeUserPRO'); location.reload(); }
 
 async function undo() {
     const snap = await rdb.ref('records/' + currentUser).limitToLast(1).once('value');
     if(snap.exists()) {
         const key = Object.keys(snap.val())[0];
-        if(confirm("শেষ লেনদেনটি ডিলিট করতে চান?")) {
+        if(confirm("শেষ লেনদেনটি মুছতে চান?")) {
             await rdb.ref('records/' + currentUser + '/' + key).remove();
             loadData(currentFilter);
         }
     }
 }
 
-// Initial Load
 window.onload = () => {
     if(currentUser) {
         document.getElementById('auth-screen').classList.add('hidden');
         document.getElementById('main-app').classList.remove('hidden');
-        document.getElementById('side-username').innerText = currentUser;
-        document.getElementById('side-user-icon').innerText = currentUser[0].toUpperCase();
         loadData('home');
     }
-        }
+    if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js'); }
+}
