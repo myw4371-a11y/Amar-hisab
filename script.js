@@ -1,191 +1,143 @@
-/**
- * Amar Hishab - Professional Logic v1.0
- * Features: Offline Sync, Auto-update at midnight, Advanced Filters
- */
-
-const db = new Dexie("HishabProDB");
+const db = new Dexie("ProHishabDB");
 db.version(1).stores({
-    records: "++id, desc, amt, type, date, ts"
+    users: "&username, password, joinDate",
+    records: "++id, user, desc, amt, type, date, ts"
 });
 
+let currentUser = localStorage.getItem('activeUser');
 let currentFilter = 'home';
-const authScreen = document.getElementById('auth-screen');
-const mainApp = document.getElementById('main-app');
 
-// --- ১. অথেনটিকেশন লজিক ---
-function handleAuth() {
-    const email = document.getElementById('email').value;
-    const pass = document.getElementById('password').value;
-    const msg = document.getElementById('auth-msg');
-
-    if (email.includes('@') && pass.length >= 6) {
-        localStorage.setItem('user_session', email);
-        document.getElementById('user-display').innerText = email.split('@')[0];
-        initApp();
-    } else {
-        msg.innerText = "সঠিক ইমেইল এবং অন্তত ৬ সংখ্যার পাসওয়ার্ড দিন";
-        msg.classList.remove('hidden');
-    }
+// --- Auth System ---
+function toggleAuth(isReg) {
+    document.getElementById('reg-fields').classList.toggle('hidden', !isReg);
+    document.getElementById('login-fields').classList.toggle('hidden', isReg);
+    document.getElementById('auth-title').innerText = isReg ? "রেজিস্ট্রেশন" : "লগইন";
+    document.getElementById('auth-error').innerText = "";
 }
 
-function initApp() {
-    authScreen.classList.add('hidden');
-    mainApp.classList.remove('hidden');
-    checkMidnightUpdate();
-    loadHishab('home');
+async function handleRegister() {
+    const user = document.getElementById('reg-user').value.trim();
+    const p1 = document.getElementById('reg-pass1').value;
+    const p2 = document.getElementById('reg-pass2').value;
+
+    if(!user || p1.length < 4) return showError("সঠিক তথ্য দিন");
+    if(p1 !== p2) return showError("পাসওয়ার্ড মেলেনি");
+
+    try {
+        await db.users.add({
+            username: user,
+            password: p1,
+            joinDate: new Date().toLocaleDateString('bn-BD')
+        });
+        loginUser(user);
+    } catch(e) { showError("এই ইউজার নেমটি আগেই নেয়া হয়েছে!"); }
 }
 
-// --- ২. মেইন ফাংশনালিটি ---
-async function addEntry(type) {
+async function handleLogin() {
+    const user = document.getElementById('login-user').value.trim();
+    const pass = document.getElementById('login-pass').value;
+    const found = await db.users.get(user);
+
+    if(found && found.password === pass) loginUser(user);
+    else showError("ইউজার নেম বা পাসওয়ার্ড ভুল!");
+}
+
+function loginUser(user) {
+    localStorage.setItem('activeUser', user);
+    currentUser = user;
+    location.reload();
+}
+
+function showError(m) { document.getElementById('auth-error').innerText = m; }
+
+// --- App Logic ---
+async function save(type) {
     const desc = document.getElementById('desc').value;
     const amt = document.getElementById('amt').value;
-    const date = new Date().toISOString().split('T')[0];
+    if(!desc || amt <= 0) return;
 
-    if (desc && amt > 0) {
-        await db.records.add({
-            desc,
-            amt: parseFloat(amt),
-            type,
-            date,
-            ts: Date.now()
-        });
-        document.getElementById('desc').value = "";
-        document.getElementById('amt').value = "";
-        loadHishab(currentFilter);
-    } else {
-        alert("বিবরণ এবং টাকার পরিমাণ সঠিক নয়!");
-    }
+    await db.records.add({
+        user: currentUser,
+        desc,
+        amt: Number(amt),
+        type,
+        date: new Date().toISOString().split('T')[0],
+        ts: Date.now()
+    });
+    document.getElementById('desc').value = "";
+    document.getElementById('amt').value = "";
+    loadData(currentFilter);
 }
 
-async function loadHishab(filter = 'home', customDate = null) {
+async function loadData(filter = 'home') {
     currentFilter = filter;
-    const list = document.getElementById('list-container');
-    const incomeEl = document.getElementById('sum-income');
-    const expenseEl = document.getElementById('sum-expense');
-    const titleEl = document.getElementById('filter-title');
-    
-    let allRecords = await db.records.toArray();
+    const list = document.getElementById('data-list');
+    const records = await db.records.where('user').equals(currentUser).toArray();
     let filtered = [];
-    const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
+    const today = new Date().toISOString().split('T')[0];
 
-    // অ্যাডভান্সড ফিল্টার লজিক
-    switch(filter) {
-        case 'today':
-            filtered = allRecords.filter(r => r.date === todayStr);
-            titleEl.innerText = "আজকের হিসাব";
-            break;
-        case 'week':
-            const weekAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
-            filtered = allRecords.filter(r => r.ts >= weekAgo);
-            titleEl.innerText = "গত ৭ দিনের হিসাব";
-            break;
-        case 'thisMonth':
-            const thisMonth = todayStr.substring(0, 7);
-            filtered = allRecords.filter(r => r.date.startsWith(thisMonth));
-            titleEl.innerText = "এই মাসের হিসাব";
-            break;
-        case 'lastMonth':
-            const lastM = new Date();
-            lastM.setMonth(lastM.getMonth() - 1);
-            const lastMonthStr = lastM.toISOString().substring(0, 7);
-            filtered = allRecords.filter(r => r.date.startsWith(lastMonthStr));
-            titleEl.innerText = "গত মাসের হিসাব";
-            break;
-        case 'year':
-            const yearStr = todayStr.substring(0, 4);
-            filtered = allRecords.filter(r => r.date.startsWith(yearStr));
-            titleEl.innerText = "এই বছরের হিসাব";
-            break;
-        case 'calendar':
-            filtered = allRecords.filter(r => r.date === customDate);
-            titleEl.innerText = customDate + " এর হিসাব";
-            break;
-        default:
-            filtered = allRecords;
-            titleEl.innerText = "সব সময়ের হিসাব";
-    }
+    // Filter Logic
+    if(filter === 'today') filtered = records.filter(r => r.date === today);
+    else if(filter === 'week') filtered = records.filter(r => r.ts >= (Date.now() - 7*86400000));
+    else if(filter === 'month') filtered = records.filter(r => r.date.startsWith(today.substring(0,7)));
+    else if(filter === 'lastMonth') {
+        let lm = new Date(); lm.setMonth(lm.getMonth()-1);
+        filtered = records.filter(r => r.date.startsWith(lm.toISOString().substring(0,7)));
+    } else filtered = records;
 
-    // স্ক্রিন রেন্ডারিং
+    // Rendering & Sum
     list.innerHTML = "";
-    let iSum = 0, eSum = 0;
+    let inSum = 0, exSum = 0;
 
-    filtered.sort((a,b) => b.ts - a.ts).forEach(item => {
-        if(item.type === 'income') iSum += item.amt; else eSum += item.amt;
-        
+    filtered.reverse().forEach(r => {
+        if(r.type === 'income') inSum += r.amt; else exSum += r.amt;
         list.innerHTML += `
-            <div class="bg-white p-5 rounded-3xl shadow-sm flex justify-between items-center border border-gray-50 animate-up">
-                <div class="flex items-center gap-4">
-                    <div class="w-12 h-12 rounded-2xl flex items-center justify-center text-lg ${item.type === 'income' ? 'bg-green-50 text-green-500' : 'bg-red-50 text-red-500'}">
-                        <i class="fa-solid ${item.type === 'income' ? 'fa-arrow-trend-up' : 'fa-arrow-trend-down'}"></i>
-                    </div>
-                    <div>
-                        <p class="font-bold text-gray-800 text-sm">${item.desc}</p>
-                        <p class="text-[10px] text-gray-400 font-bold tracking-widest uppercase">${item.date}</p>
-                    </div>
+            <div class="bg-white p-5 rounded-3xl shadow-sm flex justify-between items-center animate__animated animate__fadeInUp border-l-8 ${r.type==='income'?'border-emerald-400':'border-rose-400'}">
+                <div>
+                    <p class="font-black text-slate-800">${r.desc}</p>
+                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">${r.date}</p>
                 </div>
-                <div class="text-right">
-                    <p class="text-lg font-black ${item.type === 'income' ? 'text-green-500' : 'text-red-500'}">
-                        ${item.type === 'income' ? '+' : '-'} ৳${item.amt}
-                    </p>
-                </div>
+                <p class="text-xl font-black ${r.type==='income'?'text-emerald-500':'text-rose-500'}">${r.type==='income'?'+':'-'} ৳${r.amt}</p>
             </div>
         `;
     });
 
-    incomeEl.innerText = iSum.toLocaleString('bn-BD');
-    expenseEl.innerText = eSum.toLocaleString('bn-BD');
-    document.getElementById('current-date').innerText = todayStr;
+    document.getElementById('sum-in').innerText = inSum;
+    document.getElementById('sum-ex').innerText = exSum;
+    document.getElementById('total-balance').innerText = inSum - exSum;
+    document.getElementById('view-title').innerText = filter === 'home' ? "সব লেনদেন" : "ফিল্টার করা হিসাব";
     if(document.getElementById('sidebar').classList.contains('active')) toggleSidebar();
 }
 
-// --- ৩. ইউটিলিটি ফাংশনস ---
+// --- UI Helpers ---
 function toggleSidebar() {
     document.getElementById('sidebar').classList.toggle('active');
     document.getElementById('sidebar-overlay').classList.toggle('hidden');
 }
 
-function openCalendar() {
-    document.getElementById('calInput').showPicker();
+async function openProfile() {
+    const user = await db.users.get(currentUser);
+    document.getElementById('prof-user').innerText = user.username;
+    document.getElementById('prof-date').innerText = "Joining: " + user.joinDate;
+    document.getElementById('profile-modal').classList.remove('hidden');
 }
 
-function filterByCalendar(val) {
-    loadHishab('calendar', val);
-}
+function closeProfile() { document.getElementById('profile-modal').classList.add('hidden'); }
+
+function logout() { localStorage.removeItem('activeUser'); location.reload(); }
 
 async function undo() {
-    const all = await db.records.toArray();
-    if(all.length > 0) {
-        const last = all[all.length - 1];
-        if(confirm(`"${last.desc}" হিসাবটি মুছে ফেলতে চান?`)) {
-            await db.records.delete(last.id);
-            loadHishab(currentFilter);
-        }
+    const recs = await db.records.where('user').equals(currentUser).toArray();
+    if(recs.length > 0) {
+        await db.records.delete(recs[recs.length-1].id);
+        loadData(currentFilter);
     }
 }
 
-// রাত ১২টার পর আপডেট করার লজিক
-function checkMidnightUpdate() {
-    const lastUpdate = localStorage.getItem('last_update_date');
-    const today = new Date().toDateString();
-    if (lastUpdate && lastUpdate !== today) {
-        console.log("নতুন দিন শুরু হয়েছে, হিসাব আপডেট করা হচ্ছে...");
-        // এখানে চাইলে কোনো অটোমেটেড মেসেজ বা রিপোর্ট জেনারেট করা যায়
-    }
-    localStorage.setItem('last_update_date', today);
-}
-
-function logout() {
-    if(confirm("লগআউট করতে চান?")) {
-        localStorage.removeItem('user_session');
-        location.reload();
-    }
-}
-
-// চেক সেশন
 window.onload = () => {
-    if(localStorage.getItem('user_session')) {
-        document.getElementById('user-display').innerText = localStorage.getItem('user_session').split('@')[0];
-        initApp();
+    if(currentUser) {
+        document.getElementById('auth-screen').classList.add('hidden');
+        document.getElementById('main-app').classList.remove('hidden');
+        loadData('home');
     }
-    }
+}
