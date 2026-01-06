@@ -17,10 +17,8 @@
         .sidebar { transition: 0.5s cubic-bezier(0.4, 0, 0.2, 1); transform: translateX(100%); }
         .sidebar.active { transform: translateX(0); }
         .main-gradient { background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); }
-        .input-focus:focus { ring: 2px; ring-color: #6366f1; border: none; outline: none; }
         .btn-click:active { transform: scale(0.95); }
         
-        /* Splash Screen Style */
         #splash-screen {
             position: fixed;
             inset: 0;
@@ -69,11 +67,11 @@
             <div id="reg-fields" class="space-y-4">
                 <input type="text" id="reg-user" placeholder="ইউজার নেম" class="w-full p-4 bg-slate-100 rounded-2xl outline-none focus:ring-2 ring-indigo-500 font-semibold">
                 <div class="relative">
-                    <input type="password" id="reg-pass1" placeholder="পাসওয়ার্ড (৬+ সংখ্যা)" class="w-full p-4 bg-slate-100 rounded-2xl outline-none focus:ring-2 ring-indigo-500 font-semibold">
+                    <input type="password" id="reg-pass1" placeholder="পাসওয়ার্ড" class="w-full p-4 bg-slate-100 rounded-2xl outline-none focus:ring-2 ring-indigo-500 font-semibold">
                     <button onclick="togglePass('reg-pass1', this)" class="absolute right-4 top-4 text-slate-400"><i class="fa-solid fa-eye-slash"></i></button>
                 </div>
                 <div class="relative">
-                    <input type="password" id="reg-pass2" placeholder="পাসওয়ার্ড নিশ্চিত করুন" class="w-full p-4 bg-slate-100 rounded-2xl outline-none focus:ring-2 ring-indigo-500 font-semibold">
+                    <input type="password" id="reg-pass2" placeholder="নিশ্চিত করুন" class="w-full p-4 bg-slate-100 rounded-2xl outline-none focus:ring-2 ring-indigo-500 font-semibold">
                     <button onclick="togglePass('reg-pass2', this)" class="absolute right-4 top-4 text-slate-400"><i class="fa-solid fa-eye-slash"></i></button>
                 </div>
                 <button onclick="handleRegister()" class="w-full main-gradient text-white py-4 rounded-2xl font-bold shadow-xl btn-click">রেজিস্ট্রেশন করুন</button>
@@ -112,31 +110,59 @@
             </div>
 
             <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-50 mb-8 space-y-4">
-                <input type="text" id="desc" placeholder="কিসের খরচ? (যেমন: খাবার)" class="w-full p-4 bg-slate-50 rounded-2xl outline-none focus:ring-2 ring-indigo-100 font-semibold">
-                <input type="number" id="amt" placeholder="টাকার পরিমাণ" class="w-full p-4 bg-slate-50 rounded-2xl outline-none focus:ring-2 ring-indigo-100 text-2xl font-black">
+                <input type="text" id="desc" placeholder="কিসের খরচ?" class="w-full p-4 bg-slate-50 rounded-2xl outline-none font-semibold">
+                <input type="number" id="amt" placeholder="টাকার পরিমাণ" class="w-full p-4 bg-slate-50 rounded-2xl outline-none text-2xl font-black">
                 <div class="flex gap-3 pt-2">
-                    <button onclick="save('income')" class="flex-1 bg-emerald-500 text-white py-4 rounded-2xl font-black shadow-lg shadow-emerald-100 btn-click transition-all">আয় +</button>
-                    <button onclick="save('expense')" class="flex-1 bg-rose-500 text-white py-4 rounded-2xl font-black shadow-lg shadow-rose-100 btn-click transition-all">খরচ -</button>
+                    <button onclick="save('income')" class="flex-1 bg-emerald-500 text-white py-4 rounded-2xl font-black shadow-lg btn-click">আয় +</button>
+                    <button onclick="save('expense')" class="flex-1 bg-rose-500 text-white py-4 rounded-2xl font-black shadow-lg btn-click">খরচ -</button>
                 </div>
+                <button onclick="undo()" class="w-full text-slate-300 text-[10px] font-bold uppercase tracking-widest mt-2"><i class="fa-solid fa-rotate-left mr-1"></i> ভুল হয়েছে? আন-ডু করুন</button>
+            </div>
+
+            <div class="flex justify-between items-center mb-5 px-2">
+                <h4 id="view-title" class="font-black text-slate-800">লেনদেন ইতিহাস</h4>
+                <span id="view-date" class="text-[10px] bg-white text-indigo-600 px-3 py-1 rounded-full font-black shadow-sm uppercase">সব সময়</span>
             </div>
 
             <div id="data-list" class="space-y-4 pb-20"></div>
+
+            <footer class="text-center py-10 border-t border-slate-100 mt-10">
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Designed By</p>
+                <a href="https://t.me/hackingacademyX" target="_blank" class="text-xl font-black text-indigo-600">Zord Academy</a>
+            </footer>
         </main>
     </div>
 
+    <div id="sidebar-overlay" onclick="toggleSidebar()" class="fixed inset-0 bg-slate-900/20 z-[55] hidden backdrop-blur-sm"></div>
+    <div id="sidebar" class="fixed top-0 right-0 h-full w-72 bg-white z-[60] sidebar shadow-2xl p-8">
+        <h3 class="font-black text-2xl mb-8">ফিল্টার মেনু</h3>
+        <div class="space-y-3">
+            <button onclick="loadData('home')" class="w-full text-left p-4 rounded-2xl font-bold flex gap-4 hover:bg-indigo-50"><i class="fa-solid fa-house text-indigo-500"></i> হোম</button>
+            <button onclick="loadData('today')" class="w-full text-left p-4 rounded-2xl font-bold flex gap-4 hover:bg-indigo-50"><i class="fa-solid fa-calendar-day text-amber-500"></i> আজকের হিসাব</button>
+            <button onclick="loadData('week')" class="w-full text-left p-4 rounded-2xl font-bold flex gap-4 hover:bg-indigo-50"><i class="fa-solid fa-calendar-week text-emerald-500"></i> গত ৭ দিন</button>
+            <button onclick="loadData('month')" class="w-full text-left p-4 rounded-2xl font-bold flex gap-4 hover:bg-indigo-50"><i class="fa-solid fa-calendar-days text-purple-500"></i> এই মাস</button>
+            <button onclick="logout()" class="w-full text-left p-4 text-red-500 font-bold mt-10 flex gap-4"><i class="fa-solid fa-power-off"></i> লগআউট</button>
+        </div>
+    </div>
+
+    <div id="profile-modal" class="fixed inset-0 z-[110] bg-black/40 hidden flex items-center justify-center p-6 backdrop-blur-md">
+        <div class="bg-white w-full max-w-xs rounded-[3rem] p-8 text-center animate__animated animate__zoomIn">
+            <div class="w-20 h-20 main-gradient text-white rounded-full flex items-center justify-center mx-auto mb-4 text-3xl shadow-xl"><i class="fa-solid fa-user"></i></div>
+            <h3 id="prof-user" class="text-2xl font-black text-slate-800 italic">User</h3>
+            <p id="prof-date" class="text-slate-400 text-xs font-bold mt-1">Joined: 2026</p>
+            <button onclick="closeProfile()" class="mt-8 text-slate-400 font-bold text-xs uppercase tracking-widest">বন্ধ করুন</button>
+        </div>
+    </div>
+
     <script>
-        // ২ সেকেন্ড পর স্প্ল্যাশ স্ক্রিন রিমুভ হবে
         window.addEventListener('load', () => {
             setTimeout(() => {
                 const splash = document.getElementById('splash-screen');
                 splash.style.opacity = '0';
-                setTimeout(() => {
-                    splash.style.display = 'none';
-                }, 500);
+                setTimeout(() => { splash.style.display = 'none'; }, 500);
             }, 2000);
         });
 
-        // পাসওয়ার্ড দেখানো/লুকানোর ফাংশন
         function togglePass(id, btn) {
             const input = document.getElementById(id);
             if (input.type === "password") {
@@ -148,7 +174,6 @@
             }
         }
 
-        // লগইন এবং রেজিস্ট্রেশন সুইচ
         function toggleAuth(isReg) {
             document.getElementById('reg-fields').classList.toggle('hidden', !isReg);
             document.getElementById('login-fields').classList.toggle('hidden', isReg);
@@ -158,4 +183,4 @@
     </script>
     <script src="script.js"></script>
 </body>
-    </html>
+                    </html>
