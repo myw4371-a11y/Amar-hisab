@@ -1,4 +1,4 @@
-// ১. Firebase Setup (আপনার কনফিগারেশন ব্যবহার করুন)
+// ১. Firebase Configuration
 const firebaseConfig = {
   apiKey: "AIzaSyAyNkZvxqdPsa2E2SXnYVsZe1wENJF1I7E",
   authDomain: "amar-hishab-pro.firebaseapp.com",
@@ -13,9 +13,9 @@ firebase.initializeApp(firebaseConfig);
 const rdb = firebase.database();
 let currentUser = localStorage.getItem('activeUserPRO');
 let currentFilter = 'home';
-let currentMType = '';
+let currentMType = ''; // money, expense, meal
 
-// --- ২. Authentication ---
+// --- ২. Auth Logic ---
 function toggleAuth(isReg) {
     document.getElementById('reg-fields').classList.toggle('hidden', !isReg);
     document.getElementById('login-fields').classList.toggle('hidden', isReg);
@@ -25,9 +25,9 @@ function toggleAuth(isReg) {
 async function handleRegister() {
     const user = document.getElementById('reg-user').value.trim().toLowerCase();
     const pass = document.getElementById('reg-pass1').value;
-    if(!user || pass.length < 4) return;
+    if(!user || pass.length < 4) return showError("সঠিক তথ্য দিন");
     const snap = await rdb.ref('users/' + user).once('value');
-    if (snap.exists()) return alert("নামটি আগেই নেয়া হয়েছে");
+    if (snap.exists()) return showError("নামটি আগেই নেয়া হয়েছে");
     await rdb.ref('users/' + user).set({ password: pass, joinDate: new Date().toLocaleDateString('bn-BD', {year:'numeric', month:'long'}) });
     login(user);
 }
@@ -37,13 +37,13 @@ async function handleLogin() {
     const pass = document.getElementById('login-pass').value;
     const snap = await rdb.ref('users/' + user).once('value');
     if(snap.exists() && snap.val().password === pass) login(user);
-    else alert("ভুল তথ্য");
+    else showError("ভুল পাসওয়ার্ড বা ইউজারনেম");
 }
 
 function login(user) { localStorage.setItem('activeUserPRO', user); location.reload(); }
-function logout() { localStorage.removeItem('activeUserPRO'); location.reload(); }
+function showError(m) { const el = document.getElementById('auth-error'); el.innerText = m; el.classList.remove('hidden'); }
 
-// --- ৩. Main App Core ---
+// --- ৩. Core Hishab Logic ---
 async function save(type) {
     const desc = document.getElementById('desc').value.trim();
     const amt = document.getElementById('amt').value;
@@ -64,34 +64,36 @@ async function loadData(filter = 'home') {
     const now = new Date();
     const todayStr = now.toISOString().split('T')[0];
     const currentMonth = todayStr.substring(0, 7);
-    
+    const d = new Date(); d.setMonth(d.getMonth() - 1);
+    const lastMonth = d.toISOString().substring(0, 7);
+
     let filtered = records;
     if (filter === 'today') filtered = records.filter(r => r.date === todayStr);
     else if (filter === 'week') filtered = records.filter(r => r.ts >= (Date.now() - 7 * 86400000));
     else if (filter === 'month') filtered = records.filter(r => r.date.startsWith(currentMonth));
-    else if (filter === 'last_month') {
-        const d = new Date(); d.setMonth(d.getMonth() - 1);
-        filtered = records.filter(r => r.date.startsWith(d.toISOString().substring(0, 7)));
-    } else if (filter === 'year') filtered = records.filter(r => r.date.startsWith(todayStr.substring(0, 4)));
+    else if (filter === 'last_month') filtered = records.filter(r => r.date.startsWith(lastMonth));
+    else if (filter === 'year') filtered = records.filter(r => r.date.startsWith(todayStr.substring(0, 4)));
 
     const list = document.getElementById('data-list');
     list.innerHTML = "";
     let iS = 0, eS = 0;
+
     filtered.sort((a,b) => b.ts - a.ts).forEach(r => {
         if(r.type === 'income') iS += r.amt; else eS += r.amt;
         const color = r.type === 'income' ? 'emerald' : 'rose';
-        list.innerHTML += `<div class="bg-white p-5 rounded-[2rem] shadow-sm flex justify-between items-center border border-slate-50">
-            <div><p class="font-black text-slate-800 text-sm">${r.desc}</p><p class="text-[9px] text-slate-400 font-bold uppercase">${r.date}</p></div>
-            <p class="text-lg font-black text-${color}-500">৳${r.amt}</p>
+        list.innerHTML += `<div class="bg-white p-6 rounded-[2.5rem] shadow-sm flex justify-between items-center animate__animated animate__fadeInUp border border-slate-50">
+            <div><p class="font-black text-slate-800 text-sm">${r.desc}</p><p class="text-[9px] text-slate-400 font-bold tracking-widest uppercase">${r.date}</p></div>
+            <p class="text-xl font-black text-${color}-500">৳${r.amt}</p>
         </div>`;
     });
     document.getElementById('sum-in').innerText = iS;
     document.getElementById('sum-ex').innerText = eS;
     document.getElementById('total-balance').innerText = iS - eS;
-    if(document.getElementById('sidebar').classList.contains('active')) toggleSidebar();
+    const titles = { home: 'সব সময়', today: 'আজ', week: 'এই সপ্তাহ', month: 'এই মাস', last_month: 'পুরানো মাস', year: 'এই বছর' };
+    document.getElementById('view-date').innerText = titles[filter] || filter;
 }
 
-// --- ৪. Manager Logic ---
+// --- ৪. Manager Logic (New) ---
 function openManager() { document.getElementById('manager-screen').classList.remove('hidden'); loadManagerData(); }
 function closeManager() { document.getElementById('manager-screen').classList.add('hidden'); }
 
@@ -100,19 +102,18 @@ function mAdd(type) {
     const titles = { money: 'টাকা জমা', expense: 'বাজার খরচ', meal: 'মিল সংখ্যা' };
     document.getElementById('m-modal-title').innerText = titles[type];
     document.getElementById('m-entry-modal').classList.remove('hidden');
-    updateSuggestions();
+    updateMSuggestions();
 }
 
 function closeMModal() { document.getElementById('m-entry-modal').classList.add('hidden'); }
 
-async function updateSuggestions() {
+async function updateMSuggestions() {
     const snap = await rdb.ref('manager/' + currentUser + '/money').once('value');
     const suggestions = document.getElementById('name-suggestions');
     suggestions.innerHTML = "";
-    if(snap.val()) {
-        [...new Set(Object.values(snap.val()).map(x => x.name))].forEach(name => {
-            suggestions.innerHTML += `<option value="${name}">`;
-        });
+    if(snap.exists()){
+        const names = [...new Set(Object.values(snap.val()).map(x => x.name))];
+        names.forEach(n => { suggestions.innerHTML += `<option value="${n}">`; });
     }
 }
 
@@ -152,8 +153,8 @@ async function loadManagerData() {
         let pabe = uCost > uMon ? uCost - uMon : 0;
         let dibe = uMon > uCost ? uMon - uCost : 0;
 
-        list.innerHTML += `<tr class="border-b border-slate-50">
-            <td class="py-3 text-indigo-600 font-bold">${n}</td>
+        list.innerHTML += `<tr onclick="openMDetail('${n}')" class="border-b border-slate-50 active:bg-slate-100 transition-colors">
+            <td class="p-4 text-indigo-600 font-bold">${n}</td>
             <td>${uMon}</td><td>${uMeal}</td><td>${uCost.toFixed(0)}</td>
             <td class="text-rose-500">${pabe > 0 ? pabe.toFixed(0) : '-'}</td>
             <td class="text-emerald-500">${dibe > 0 ? dibe.toFixed(0) : '-'}</td>
@@ -161,30 +162,68 @@ async function loadManagerData() {
     });
 }
 
-// --- ৫. UI Control ---
-function toggleSidebar() { document.getElementById('sidebar').classList.toggle('active'); document.getElementById('sidebar-overlay').classList.toggle('hidden'); }
-function openProfile() { 
-    rdb.ref('users/' + currentUser).once('value').then(s => {
-        document.getElementById('prof-user').innerText = currentUser;
-        document.getElementById('user-avatar').innerText = currentUser[0].toUpperCase();
-        document.getElementById('prof-date').innerText = "Joined: " + (s.val().joinDate || "Jan 2026");
-        document.getElementById('profile-modal').classList.remove('hidden');
+// --- ৫. Manager Detail, Edit & Reset ---
+let currentDetailName = '';
+async function openMDetail(name) {
+    currentDetailName = name;
+    document.getElementById('m-detail-title').innerText = name + " - বিস্তারিত";
+    document.getElementById('m-detail-screen').classList.remove('hidden');
+    
+    const snap = await rdb.ref('manager/' + currentUser).once('value');
+    const data = snap.val() || {};
+    const content = document.getElementById('m-detail-content');
+    content.innerHTML = "";
+
+    ['money', 'meal'].forEach(type => {
+        if(data[type]) {
+            Object.entries(data[type]).filter(([id, val])=> val.name === name).forEach(([id, val]) => {
+                const label = type === 'money' ? '৳ জমা' : 'টি মিল';
+                content.innerHTML += `<div class="bg-white p-5 rounded-2xl flex justify-between items-center shadow-sm border border-slate-100 animate__animated animate__fadeIn">
+                    <p class="font-bold text-slate-600">${label}: <span class="text-indigo-600 text-lg ml-2">${val.amount}</span></p>
+                    <button onclick="deleteMEntry('${type}', '${id}')" class="text-rose-400 p-2"><i class="fa-solid fa-trash-can"></i></button>
+                </div>`;
+            });
+        }
     });
+}
+
+function closeMDetail() { document.getElementById('m-detail-screen').classList.add('hidden'); }
+
+async function deleteMEntry(type, id) {
+    if(confirm("এই এন্ট্রিটি মুছে ফেলবেন?")) {
+        await rdb.ref(`manager/${currentUser}/${type}/${id}`).remove();
+        openMDetail(currentDetailName); loadManagerData();
+    }
+}
+
+async function undoMEntry() {
+    alert("লিস্টের ডিলিট বাটন ব্যবহার করে এডিট করুন।");
+}
+
+async function resetManager() {
+    if(confirm("সাবধান! ম্যানেজারি হিসাবের সব ডাটা মুছে যাবে। আপনি কি নিশ্চিত?")) {
+        await rdb.ref('manager/' + currentUser).remove();
+        loadManagerData();
+    }
+}
+
+// --- ৬. Sidebar & Profile ---
+function toggleSidebar() { document.getElementById('sidebar').classList.toggle('active'); document.getElementById('sidebar-overlay').classList.toggle('hidden'); }
+function logout() { localStorage.removeItem('activeUserPRO'); location.reload(); }
+async function openProfile() {
+    const snap = await rdb.ref('users/' + currentUser).once('value');
+    document.getElementById('prof-user').innerText = currentUser.toUpperCase();
+    document.getElementById('user-avatar').innerText = currentUser[0].toUpperCase();
+    document.getElementById('prof-date').innerText = "Joined: " + (snap.val().joinDate || "Jan 2026");
+    document.getElementById('profile-modal').classList.remove('hidden');
 }
 function closeProfile() { document.getElementById('profile-modal').classList.add('hidden'); }
 async function undo() {
     const snap = await rdb.ref('records/' + currentUser).limitToLast(1).once('value');
-    if(snap.exists() && confirm("মুছতে চান?")) {
+    if(snap.exists() && confirm("সর্বশেষ লেনদেনটি মুছবেন?")) {
         await rdb.ref('records/' + currentUser + '/' + Object.keys(snap.val())[0]).remove();
         loadData(currentFilter);
     }
 }
 
-window.onload = () => {
-    if(currentUser) {
-        document.getElementById('auth-screen').classList.add('hidden');
-        document.getElementById('main-app').classList.remove('hidden');
-        loadData('home');
-    }
-    setTimeout(() => { document.getElementById('splash-screen').style.opacity = '0'; setTimeout(()=>document.getElementById('splash-screen').style.display='none', 600); }, 2000);
-      }
+window.onload = () => { if(currentUser) { document.getElementById('auth-screen').classList.add('hidden'); document.getElementById('main-app').classList.remove('hidden'); loadData('home'); } }
