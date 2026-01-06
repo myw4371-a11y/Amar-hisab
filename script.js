@@ -13,30 +13,14 @@ firebase.initializeApp(firebaseConfig);
 const rdb = firebase.database();
 let currentUser = localStorage.getItem('activeUserPRO');
 let currentFilter = 'home';
-let deferredPrompt;
 
-// --- ২. Install Logic (PWA) ---
-window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    deferredPrompt = e;
-    document.getElementById('install-banner').classList.remove('hidden');
-});
-
-async function installPWA() {
-    if (deferredPrompt) {
-        deferredPrompt.prompt();
-        const { outcome } = await deferredPrompt.userChoice;
-        if (outcome === 'accepted') document.getElementById('install-banner').classList.add('hidden');
-        deferredPrompt = null;
-    }
-}
-
-// --- ৩. Auth Logic ---
+// --- ২. Auth Logic ---
 function togglePass(id, btn) {
     const input = document.getElementById(id);
     const icon = btn.querySelector('i');
     input.type = input.type === "password" ? "text" : "password";
-    icon.classList.toggle('fa-eye'); icon.classList.toggle('fa-eye-slash');
+    icon.classList.toggle('fa-eye'); 
+    icon.classList.toggle('fa-eye-slash');
 }
 
 function toggleAuth(isReg) {
@@ -85,7 +69,7 @@ function showError(m) {
     el.innerText = m; el.classList.remove('hidden');
 }
 
-// --- ৪. Core Hishab Logic ---
+// --- ৩. Core Hishab Logic ---
 async function save(type) {
     const desc = document.getElementById('desc').value.trim();
     const amt = document.getElementById('amt').value;
@@ -112,6 +96,7 @@ async function loadData(filter = 'home') {
     let filtered = [];
     const today = new Date().toISOString().split('T')[0];
 
+    // ফিল্টার অনুযায়ী ডাটা আলাদা করা
     if(filter === 'today') filtered = records.filter(r => r.date === today);
     else if(filter === 'week') filtered = records.filter(r => r.ts >= (Date.now() - 7*86400000));
     else if(filter === 'month') filtered = records.filter(r => r.date.startsWith(today.substring(0,7)));
@@ -136,17 +121,29 @@ async function loadData(filter = 'home') {
     document.getElementById('sum-in').innerText = iS;
     document.getElementById('sum-ex').innerText = eS;
     document.getElementById('total-balance').innerText = iS - eS;
-    document.getElementById('view-date').innerText = filter === 'home' ? "সব সময়" : filter;
+    
+    // ফিল্টার নাম আপডেট
+    const titleMap = { 'home': 'সব সময়', 'today': 'আজকের হিসাব', 'week': 'গত ৭ দিন', 'month': 'এই মাস' };
+    document.getElementById('view-date').innerText = titleMap[filter] || filter;
+
     if(document.getElementById('sidebar').classList.contains('active')) toggleSidebar();
 }
 
-// --- ৫. Utility ---
+// --- ৪. Utility ---
 function toggleSidebar() { 
     document.getElementById('sidebar').classList.toggle('active'); 
     document.getElementById('sidebar-overlay').classList.toggle('hidden'); 
 }
-function logout() { localStorage.removeItem('activeUserPRO'); location.reload(); }
-function closeProfile() { document.getElementById('profile-modal').classList.add('hidden'); }
+
+function logout() { 
+    localStorage.removeItem('activeUserPRO'); 
+    location.reload(); 
+}
+
+function closeProfile() { 
+    document.getElementById('profile-modal').classList.add('hidden'); 
+}
+
 async function openProfile() {
     const snap = await rdb.ref('users/' + currentUser).once('value');
     document.getElementById('prof-user').innerText = currentUser;
@@ -165,11 +162,14 @@ async function undo() {
     }
 }
 
+// সবশেষে অ্যাপ ইনিশিয়েলাইজেশন
 window.onload = () => {
     if(currentUser) {
         document.getElementById('auth-screen').classList.add('hidden');
         document.getElementById('main-app').classList.remove('hidden');
         loadData('home');
     }
-    if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js'); }
-}
+    if ('serviceWorker' in navigator) { 
+        navigator.serviceWorker.register('sw.js'); 
+    }
+      }
