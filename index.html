@@ -44,6 +44,23 @@
         </div>
     </div>
 
+    <div id="web-download-area" class="hidden py-4 px-6 bg-indigo-50 border-b border-indigo-100">
+        <div class="max-w-sm mx-auto flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 main-gradient rounded-xl flex items-center justify-center text-white shadow-lg">
+                    <i class="fa-solid fa-mobile-screen-button"></i>
+                </div>
+                <div>
+                    <p class="text-[10px] font-black text-indigo-400 uppercase leading-none">Official App</p>
+                    <p class="text-sm font-black text-slate-800 leading-tight">অ্যান্ড্রয়েড অ্যাপ নামান</p>
+                </div>
+            </div>
+            <a href="app-release.apk" download class="bg-indigo-600 text-white px-5 py-2 rounded-xl text-xs font-black shadow-lg btn-click">
+                ডাউনলোড
+            </a>
+        </div>
+    </div>
+
     <div id="auth-screen" class="fixed inset-0 z-[100] bg-slate-50 flex items-center justify-center p-4">
         <div class="bg-white w-full max-w-sm p-8 rounded-[3rem] shadow-2xl animate__animated animate__fadeInUp">
             <div class="text-center mb-6">
@@ -52,16 +69,6 @@
                 </div>
                 <h2 id="auth-title" class="text-3xl font-black text-slate-800">রেজিস্ট্রেশন</h2>
                 <p id="auth-sub" class="text-slate-400 text-sm">নতুন অ্যাকাউন্ট তৈরি করুন</p>
-            </div>
-
-            <div class="mb-6">
-                <a href="app-release.apk" download class="flex items-center justify-center gap-3 bg-slate-800 text-white p-4 rounded-2xl hover:bg-black transition-all btn-click shadow-lg">
-                    <i class="fa-brands fa-android text-2xl text-green-400"></i>
-                    <div class="text-left">
-                        <p class="text-[10px] uppercase opacity-70 leading-none">Download Official</p>
-                        <p class="text-sm font-bold">Android App (APK)</p>
-                    </div>
-                </a>
             </div>
 
             <div id="reg-fields" class="space-y-4">
@@ -119,11 +126,6 @@
                 <button onclick="undo()" class="w-full text-slate-300 text-[10px] font-bold uppercase tracking-widest mt-2"><i class="fa-solid fa-rotate-left mr-1"></i> ভুল হয়েছে? আন-ডু করুন</button>
             </div>
 
-            <div class="flex justify-between items-center mb-5 px-2">
-                <h4 id="view-title" class="font-black text-slate-800">লেনদেন ইতিহাস</h4>
-                <span id="view-date" class="text-[10px] bg-white text-indigo-600 px-3 py-1 rounded-full font-black shadow-sm uppercase">সব সময়</span>
-            </div>
-
             <div id="data-list" class="space-y-4 pb-20"></div>
 
             <footer class="text-center py-10 border-t border-slate-100 mt-10">
@@ -156,13 +158,25 @@
 
     <script>
         window.addEventListener('load', () => {
+            // ১. চেক করবে ইউজার কি ব্রাউজার দিয়ে ঢুকেছে? 
+            const isApp = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+            
+            // ব্রাউজার দিয়ে ঢুকলে ডাউনলোড বার দেখাবে
+            if (!isApp) {
+                document.getElementById('web-download-area').classList.remove('hidden');
+            }
+
+            // ২. স্প্ল্যাশ স্ক্রিন ২ সেকেন্ড পর সরানো
             setTimeout(() => {
                 const splash = document.getElementById('splash-screen');
-                splash.style.opacity = '0';
-                setTimeout(() => { splash.style.display = 'none'; }, 500);
+                if(splash) {
+                    splash.style.opacity = '0';
+                    setTimeout(() => { splash.style.display = 'none'; }, 500);
+                }
             }, 2000);
         });
 
+        // পাসওয়ার্ড টগল
         function togglePass(id, btn) {
             const input = document.getElementById(id);
             if (input.type === "password") {
@@ -174,6 +188,7 @@
             }
         }
 
+        // লগইন/রেজিস্ট্রেশন সুইচ
         function toggleAuth(isReg) {
             document.getElementById('reg-fields').classList.toggle('hidden', !isReg);
             document.getElementById('login-fields').classList.toggle('hidden', isReg);
@@ -183,4 +198,4 @@
     </script>
     <script src="script.js"></script>
 </body>
-                    </html>
+                                                                                                                                           </html>
