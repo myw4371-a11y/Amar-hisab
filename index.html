@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>আমার হিসাব PRO | Zord Academy</title>
-    <link rel="manifest" href="manifest.json">
+    <title>আমার হিসাব PRO | Manager Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -13,139 +12,170 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;600;700&display=swap');
-        body { font-family: 'Hind Siliguri', sans-serif; background: #f1f5f9; overflow-x: hidden; }
+        body { font-family: 'Hind Siliguri', sans-serif; background: #f8fafc; }
         .sidebar { transition: 0.5s cubic-bezier(0.4, 0, 0.2, 1); transform: translateX(100%); }
         .sidebar.active { transform: translateX(0); }
         .main-gradient { background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); }
         .btn-click:active { transform: scale(0.96); }
-        #splash-screen {
-            position: fixed; inset: 0; z-index: 9999;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-            transition: opacity 0.6s ease;
-        }
+        #splash-screen { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); transition: opacity 0.6s ease; }
     </style>
 </head>
 <body>
 
     <div id="splash-screen">
         <div class="animate__animated animate__zoomIn text-center">
-            <div class="w-24 h-24 bg-white rounded-[2.5rem] flex items-center justify-center shadow-2xl mb-6 mx-auto">
-                <i class="fa-solid fa-sack-dollar text-indigo-600 text-5xl"></i>
+            <div class="w-20 h-20 bg-white rounded-[2rem] flex items-center justify-center shadow-2xl mb-4 mx-auto">
+                <i class="fa-solid fa-wallet text-indigo-600 text-4xl"></i>
             </div>
-            <h1 class="text-white text-3xl font-black tracking-tighter">আমার হিসাব <span class="text-indigo-200">PRO</span></h1>
-            <p class="text-indigo-100 text-[10px] font-bold uppercase tracking-[0.3em] mt-2">Zord Academy Premium</p>
+            <h1 class="text-white text-2xl font-black">আমার হিসাব <span class="text-indigo-200">PRO</span></h1>
         </div>
     </div>
 
-    <div id="auth-screen" class="fixed inset-0 z-[100] bg-slate-100 flex items-center justify-center p-4 overflow-y-auto">
-        <div class="w-full max-w-sm space-y-6">
-            <div id="web-download-area" class="hidden bg-white p-5 rounded-[2.5rem] shadow-xl border border-white flex items-center justify-between animate__animated animate__fadeInDown">
-                <div class="flex items-center gap-4">
-                    <div class="w-12 h-12 main-gradient rounded-2xl flex items-center justify-center text-white text-xl shadow-lg"><i class="fa-brands fa-android"></i></div>
-                    <div>
-                        <p class="text-[10px] font-black text-indigo-500 uppercase">Official Mobile App</p>
-                        <p class="text-sm font-black text-slate-800">অ্যাপটি নামিয়ে নিন</p>
-                    </div>
+    <div id="auth-screen" class="fixed inset-0 z-[100] bg-slate-100 flex items-center justify-center p-4">
+        <div class="w-full max-w-sm space-y-4">
+            <div id="web-download-area" class="hidden bg-white p-4 rounded-3xl shadow-xl flex items-center justify-between border border-white">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 main-gradient rounded-xl flex items-center justify-center text-white"><i class="fa-brands fa-android"></i></div>
+                    <p class="text-xs font-black text-slate-800 tracking-tighter">অফিসিয়াল অ্যাপ নামান</p>
                 </div>
-                <a href="app-release.apk" download class="bg-indigo-600 text-white px-5 py-2.5 rounded-xl text-[11px] font-black shadow-lg btn-click">Install</a>
+                <a href="app-release.apk" download class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-[10px] font-black">Download</a>
             </div>
-
-            <div class="bg-white p-8 rounded-[3.5rem] shadow-2xl border border-white animate__animated animate__fadeInUp">
-                <div class="text-center mb-8">
-                    <h2 id="auth-title" class="text-3xl font-black text-slate-800">রেজিস্ট্রেশন</h2>
-                    <p id="auth-sub" class="text-slate-400 text-sm mt-1 font-semibold">শুরু করতে ডাটা দিন</p>
-                </div>
+            <div class="bg-white p-8 rounded-[3rem] shadow-2xl border border-white">
+                <h2 id="auth-title" class="text-2xl font-black text-slate-800 text-center mb-6">রেজিস্ট্রেশন</h2>
                 <div id="reg-fields" class="space-y-4">
-                    <input type="text" id="reg-user" placeholder="ইউজার নেম" class="w-full p-4 bg-slate-50 rounded-2xl outline-none focus:ring-2 ring-indigo-500 font-bold">
-                    <input type="password" id="reg-pass1" placeholder="পাসওয়ার্ড" class="w-full p-4 bg-slate-50 rounded-2xl outline-none focus:ring-2 ring-indigo-500 font-bold">
-                    <button onclick="handleRegister()" class="w-full main-gradient text-white py-4 rounded-2xl font-black shadow-xl btn-click mt-2">অ্যাকাউন্ট খুলুন</button>
-                    <p class="text-center text-sm text-slate-500 pt-4 font-bold">অ্যাকাউন্ট আছে? <button onclick="toggleAuth(false)" class="text-indigo-600">লগইন</button></p>
+                    <input type="text" id="reg-user" placeholder="ইউজার নেম" class="w-full p-4 bg-slate-50 rounded-2xl outline-none font-bold">
+                    <input type="password" id="reg-pass1" placeholder="পাসওয়ার্ড" class="w-full p-4 bg-slate-50 rounded-2xl outline-none font-bold">
+                    <button onclick="handleRegister()" class="w-full main-gradient text-white py-4 rounded-2xl font-black btn-click">শুরু করুন</button>
+                    <p class="text-center text-xs font-bold text-slate-400">অ্যাকাউন্ট আছে? <button onclick="toggleAuth(false)" class="text-indigo-600">লগইন</button></p>
                 </div>
                 <div id="login-fields" class="space-y-4 hidden">
-                    <input type="text" id="login-user" placeholder="ইউজার নেম" class="w-full p-4 bg-slate-50 rounded-2xl outline-none focus:ring-2 ring-indigo-500 font-bold">
-                    <input type="password" id="login-pass" placeholder="পাসওয়ার্ড" class="w-full p-4 bg-slate-50 rounded-2xl outline-none focus:ring-2 ring-indigo-500 font-bold">
-                    <button onclick="handleLogin()" class="w-full main-gradient text-white py-4 rounded-2xl font-black shadow-xl btn-click mt-2">লগইন করুন</button>
-                    <p class="text-center text-sm text-slate-500 pt-4 font-bold">নতুন ইউজার? <button onclick="toggleAuth(true)" class="text-indigo-600">রেজিস্ট্রেশন</button></p>
+                    <input type="text" id="login-user" placeholder="ইউজার নেম" class="w-full p-4 bg-slate-50 rounded-2xl outline-none font-bold">
+                    <input type="password" id="login-pass" placeholder="পাসওয়ার্ড" class="w-full p-4 bg-slate-50 rounded-2xl outline-none font-bold">
+                    <button onclick="handleLogin()" class="w-full main-gradient text-white py-4 rounded-2xl font-black btn-click">লগইন</button>
+                    <p class="text-center text-xs font-bold text-slate-400">নতুন? <button onclick="toggleAuth(true)" class="text-indigo-600">রেজিস্ট্রেশন</button></p>
                 </div>
-                <p id="auth-error" class="text-rose-500 text-[10px] text-center mt-4 font-black uppercase bg-rose-50 p-2 rounded-xl hidden"></p>
+                <p id="auth-error" class="text-rose-500 text-[10px] text-center mt-4 font-black hidden"></p>
             </div>
         </div>
     </div>
 
     <div id="main-app" class="hidden min-h-screen">
-        <nav class="sticky top-0 z-50 px-6 py-5 bg-white/80 backdrop-blur-xl flex justify-between items-center border-b border-slate-100">
-            <div onclick="openProfile()" class="w-11 h-11 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center shadow-inner cursor-pointer active:scale-90 transition-transform">
-                <i class="fa-solid fa-user-circle text-2xl"></i>
-            </div>
-            <h1 class="font-black text-xl text-slate-800">হিসাব <span class="text-indigo-600">PRO</span></h1>
-            <button onclick="toggleSidebar()" class="w-11 h-11 rounded-2xl bg-slate-100 text-slate-600 flex items-center justify-center btn-click"><i class="fa-solid fa-bars-staggered"></i></button>
+        <nav class="sticky top-0 z-50 px-6 py-4 bg-white/80 backdrop-blur-xl flex justify-between items-center border-b border-slate-100">
+            <div onclick="openProfile()" class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shadow-inner cursor-pointer"><i class="fa-solid fa-user-circle text-xl"></i></div>
+            <h1 class="font-black text-lg text-slate-800 tracking-tighter">আমার হিসাব <span class="text-indigo-600 font-black">PRO</span></h1>
+            <button onclick="toggleSidebar()" class="w-10 h-10 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center"><i class="fa-solid fa-bars-staggered"></i></button>
         </nav>
 
-        <main class="p-6 max-w-lg mx-auto">
-            <div class="main-gradient p-10 rounded-[3.5rem] text-white shadow-2xl mb-8 relative overflow-hidden">
-                <p class="text-indigo-100 text-xs font-bold uppercase tracking-widest mb-1">মোট ব্যালেন্স</p>
-                <h2 class="text-6xl font-black mb-10 tracking-tighter">৳<span id="total-balance">0</span></h2>
-                <div class="grid grid-cols-2 gap-6 pt-8 border-t border-white/20">
-                    <div><p class="text-[10px] font-black opacity-60 uppercase mb-1">ইনকাম</p><p class="text-xl font-black">৳<span id="sum-in">0</span></p></div>
-                    <div class="border-l border-white/20 pl-6"><p class="text-[10px] font-black opacity-60 uppercase mb-1">খরচ</p><p class="text-xl font-black">৳<span id="sum-ex">0</span></p></div>
+        <main class="p-6 max-w-lg mx-auto pb-24">
+            <div class="main-gradient p-8 rounded-[3rem] text-white shadow-2xl mb-6">
+                <p class="text-[10px] font-bold opacity-60 uppercase tracking-widest">মোট সঞ্চয়</p>
+                <h2 class="text-5xl font-black mb-6">৳<span id="total-balance">0</span></h2>
+                <div class="flex gap-10 pt-4 border-t border-white/10">
+                    <div><p class="text-[9px] font-bold opacity-60">আয়</p><p class="text-lg font-black">৳<span id="sum-in">0</span></p></div>
+                    <div class="border-l border-white/10 pl-10"><p class="text-[9px] font-bold opacity-60">খরচ</p><p class="text-lg font-black">৳<span id="sum-ex">0</span></p></div>
                 </div>
             </div>
 
-            <div class="bg-white p-8 rounded-[3rem] shadow-xl border border-white mb-10 space-y-5">
-                <input type="text" id="desc" placeholder="কিসের লেনদেন?" class="w-full p-4 bg-slate-50 rounded-2xl outline-none font-bold text-slate-700 border focus:border-indigo-100">
-                <input type="number" id="amt" placeholder="টাকার পরিমাণ" class="w-full p-5 bg-slate-100 rounded-2xl outline-none text-3xl font-black text-slate-800 border-none">
-                <div class="flex gap-4 pt-2">
-                    <button onclick="save('income')" class="flex-1 bg-emerald-500 text-white py-5 rounded-2xl font-black shadow-lg btn-click">আয় +</button>
-                    <button onclick="save('expense')" class="flex-1 bg-rose-500 text-white py-5 rounded-2xl font-black shadow-lg btn-click">খরচ -</button>
+            <div onclick="openManager()" class="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100 mb-6 cursor-pointer hover:bg-indigo-50 transition-colors btn-click">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 bg-indigo-600 text-white rounded-2xl flex items-center justify-center shadow-lg animate-pulse"><i class="fa-solid fa-users-gear text-xl"></i></div>
+                        <div><h3 class="font-black text-slate-800">ম্যানেজারি হিসাব</h3><p class="text-[10px] font-bold text-slate-400">খাবার ও মিলের আলাদা হিসাব</p></div>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-slate-300"></i>
                 </div>
-                <button onclick="undo()" class="w-full text-slate-400 text-[10px] font-black uppercase tracking-widest pt-2">ভুল হয়েছে? রিমুভ করুন</button>
             </div>
 
-            <div class="flex justify-between items-center mb-6 px-4">
-                <h4 class="font-black text-slate-800 flex items-center gap-2"><i class="fa-solid fa-list-check text-indigo-500"></i> ইতিহাস</h4>
-                <span id="view-date" class="text-[10px] bg-white border border-slate-200 text-slate-500 px-4 py-1.5 rounded-full font-black uppercase tracking-wider">সব সময়</span>
+            <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-50 mb-8 space-y-4">
+                <input type="text" id="desc" placeholder="কিসের খরচ?" class="w-full p-4 bg-slate-50 rounded-2xl outline-none font-bold text-slate-700">
+                <input type="number" id="amt" placeholder="টাকা পরিমাণ" class="w-full p-4 bg-slate-100 rounded-2xl outline-none text-2xl font-black text-slate-800 border-none">
+                <div class="flex gap-4">
+                    <button onclick="save('income')" class="flex-1 bg-emerald-500 text-white py-4 rounded-2xl font-black shadow-lg btn-click">আয় +</button>
+                    <button onclick="save('expense')" class="flex-1 bg-rose-500 text-white py-4 rounded-2xl font-black shadow-lg btn-click">খরচ -</button>
+                </div>
+                <button onclick="undo()" class="w-full text-slate-300 text-[10px] font-bold uppercase tracking-widest text-center mt-2">ভুল হয়েছে? রিমুভ করুন</button>
             </div>
-            <div id="data-list" class="space-y-4 pb-28"></div>
+
+            <div class="flex justify-between items-center mb-4 px-2">
+                <h4 class="font-black text-slate-800">ইতিহাস</h4>
+                <span id="view-date" class="text-[10px] bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full font-black uppercase tracking-wider">সব সময়</span>
+            </div>
+            <div id="data-list" class="space-y-3"></div>
         </main>
+    </div>
+
+    <div id="manager-screen" class="fixed inset-0 z-[120] bg-slate-50 hidden overflow-y-auto">
+        <nav class="sticky top-0 p-5 bg-white shadow-sm flex justify-between items-center z-20 border-b">
+            <button onclick="closeManager()" class="text-slate-400 text-xl"><i class="fa-solid fa-arrow-left"></i></button>
+            <h2 class="font-black text-slate-800 uppercase tracking-tighter">ম্যানেজারি ড্যাশবোর্ড</h2>
+            <div class="w-8"></div>
+        </nav>
+        <div class="p-6 max-w-lg mx-auto space-y-4 pb-20">
+            <div class="main-gradient p-6 rounded-[2.5rem] text-white shadow-xl relative">
+                <p class="text-[10px] font-bold opacity-60 uppercase">মোট জমা টাকা</p>
+                <h2 class="text-3xl font-black mt-1">৳<span id="m-total-money">0</span></h2>
+                <button onclick="mAdd('money')" class="absolute right-6 bottom-6 w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center"><i class="fa-solid fa-plus"></i></button>
+            </div>
+            <div class="bg-rose-500 p-6 rounded-[2.5rem] text-white shadow-xl relative">
+                <p class="text-[10px] font-bold opacity-60 uppercase">মোট খরচ (বাজার)</p>
+                <h2 class="text-3xl font-black mt-1">৳<span id="m-total-expense">0</span></h2>
+                <button onclick="mAdd('expense')" class="absolute right-6 bottom-6 w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center"><i class="fa-solid fa-basket-shopping"></i></button>
+            </div>
+            <div class="bg-emerald-500 p-6 rounded-[2.5rem] text-white shadow-xl relative">
+                <p class="text-[10px] font-bold opacity-60 uppercase">মোট মিল সংখ্যা</p>
+                <h2 class="text-3xl font-black mt-1"><span id="m-total-meal">0</span> টি</h2>
+                <button onclick="mAdd('meal')" class="absolute right-6 bottom-6 w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center"><i class="fa-solid fa-utensils"></i></button>
+            </div>
+            <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100">
+                <h3 class="font-black text-slate-800 mb-4 border-b pb-2">মিল রেট: ৳<span id="m-meal-rate" class="text-indigo-600">0</span></h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-[10px] font-bold">
+                        <thead class="text-slate-400 border-b"><tr class="uppercase">
+                            <th class="py-2">নাম</th><th>জমা</th><th>মিল</th><th>খরচ</th><th>পাবে</th><th>দিবে</th>
+                        </tr></thead>
+                        <tbody id="manager-list" class="text-slate-700"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="m-entry-modal" class="fixed inset-0 z-[150] bg-black/60 hidden flex items-center justify-center p-6 backdrop-blur-sm">
+        <div class="bg-white w-full max-w-xs rounded-[3rem] p-8 space-y-4">
+            <h3 id="m-modal-title" class="font-black text-center text-slate-800">Entry</h3>
+            <input type="text" id="m-name" placeholder="নাম (যেমন: Sadhin)" class="w-full p-4 bg-slate-50 rounded-2xl outline-none font-bold" list="name-suggestions">
+            <datalist id="name-suggestions"></datalist>
+            <input type="number" id="m-amount" placeholder="পরিমাণ" class="w-full p-4 bg-slate-50 rounded-2xl outline-none font-black text-xl">
+            <div class="flex gap-2">
+                <button onclick="closeMModal()" class="flex-1 bg-slate-100 py-4 rounded-2xl font-bold">বাতিল</button>
+                <button onclick="saveMEntry()" class="flex-1 bg-indigo-600 text-white py-4 rounded-2xl font-bold">যোগ করুন</button>
+            </div>
+        </div>
     </div>
 
     <div id="sidebar-overlay" onclick="toggleSidebar()" class="fixed inset-0 bg-slate-900/40 z-[55] hidden backdrop-blur-sm"></div>
     <div id="sidebar" class="fixed top-0 right-0 h-full w-80 bg-white z-[60] sidebar shadow-2xl p-10 flex flex-col">
-        <div class="text-center mb-10">
-            <div class="w-20 h-20 main-gradient rounded-[2rem] flex items-center justify-center text-white text-3xl mx-auto shadow-xl mb-4"><i class="fa-solid fa-wallet"></i></div>
-            <h3 class="font-black text-2xl text-slate-800">ফিল্টার লিস্ট</h3>
+        <h3 class="font-black text-2xl text-slate-800 mb-10 text-center">ফিল্টার লিস্ট</h3>
+        <div class="space-y-2 flex-grow">
+            <button onclick="loadData('home')" class="w-full text-left p-4 rounded-2xl font-black flex gap-4 hover:bg-indigo-50"><i class="fa-solid fa-shapes"></i> সব সময়</button>
+            <button onclick="loadData('today')" class="w-full text-left p-4 rounded-2xl font-black flex gap-4 hover:bg-indigo-50"><i class="fa-solid fa-bolt"></i> আজ</button>
+            <button onclick="loadData('week')" class="w-full text-left p-4 rounded-2xl font-black flex gap-4 hover:bg-indigo-50"><i class="fa-solid fa-calendar"></i> এই সপ্তাহ</button>
+            <button onclick="loadData('month')" class="w-full text-left p-4 rounded-2xl font-black flex gap-4 hover:bg-indigo-50"><i class="fa-solid fa-calendar-check"></i> এই মাস</button>
+            <button onclick="loadData('last_month')" class="w-full text-left p-4 rounded-2xl font-black flex gap-4 hover:bg-indigo-50"><i class="fa-solid fa-calendar-minus"></i> পুরানো মাস</button>
+            <button onclick="loadData('year')" class="w-full text-left p-4 rounded-2xl font-black flex gap-4 hover:bg-indigo-50"><i class="fa-solid fa-calendar-days"></i> এই বছর</button>
         </div>
-        <div class="space-y-2 flex-grow overflow-y-auto">
-            <button onclick="loadData('home')" class="w-full text-left p-4 rounded-2xl font-black flex gap-4 hover:bg-indigo-50 transition-all text-slate-600 hover:text-indigo-600"><i class="fa-solid fa-shapes"></i> সব সময়</button>
-            <button onclick="loadData('today')" class="w-full text-left p-4 rounded-2xl font-black flex gap-4 hover:bg-indigo-50 transition-all text-slate-600 hover:text-indigo-600"><i class="fa-solid fa-bolt"></i> আজ</button>
-            <button onclick="loadData('week')" class="w-full text-left p-4 rounded-2xl font-black flex gap-4 hover:bg-indigo-50 transition-all text-slate-600 hover:text-indigo-600"><i class="fa-solid fa-calendar-week"></i> এই সপ্তাহ</button>
-            <button onclick="loadData('month')" class="w-full text-left p-4 rounded-2xl font-black flex gap-4 hover:bg-indigo-50 transition-all text-slate-600 hover:text-indigo-600"><i class="fa-solid fa-calendar-check"></i> এই মাস</button>
-            <button onclick="loadData('last_month')" class="w-full text-left p-4 rounded-2xl font-black flex gap-4 hover:bg-indigo-50 transition-all text-slate-600 hover:text-indigo-600"><i class="fa-solid fa-calendar-minus"></i> পুরানো মাস</button>
-            <button onclick="loadData('year')" class="w-full text-left p-4 rounded-2xl font-black flex gap-4 hover:bg-indigo-50 transition-all text-slate-600 hover:text-indigo-600"><i class="fa-solid fa-calendar-days"></i> এই বছর</button>
-            <button onclick="logout()" class="w-full text-left p-4 text-rose-500 font-black flex gap-4 border-t mt-5 pt-8"><i class="fa-solid fa-power-off"></i> লগআউট</button>
-        </div>
+        <button onclick="logout()" class="w-full text-left p-4 text-rose-500 font-black flex gap-4 border-t pt-8"><i class="fa-solid fa-power-off"></i> লগআউট</button>
     </div>
 
     <div id="profile-modal" class="fixed inset-0 z-[110] bg-black/60 hidden flex items-center justify-center p-6 backdrop-blur-md">
-        <div class="bg-white w-full max-w-sm rounded-[4rem] p-12 text-center animate__animated animate__zoomIn shadow-2xl">
-            <div id="user-avatar" class="w-24 h-24 main-gradient text-white rounded-full flex items-center justify-center mx-auto mb-6 text-4xl font-black shadow-2xl">U</div>
-            <h3 id="prof-user" class="text-3xl font-black text-slate-800">User</h3>
-            <p id="prof-date" class="text-slate-400 text-xs font-bold mt-4 tracking-widest">Joined: Jan 2026</p>
-            <button onclick="closeProfile()" class="mt-8 text-slate-300 font-black text-[10px] uppercase tracking-widest">বন্ধ করুন</button>
+        <div class="bg-white w-full max-w-sm rounded-[3rem] p-10 text-center shadow-2xl">
+            <div id="user-avatar" class="w-20 h-20 main-gradient text-white rounded-full flex items-center justify-center mx-auto mb-4 text-3xl font-black">U</div>
+            <h3 id="prof-user" class="text-2xl font-black text-slate-800 uppercase">User</h3>
+            <p id="prof-date" class="text-slate-400 text-xs font-bold mt-2">Member Since: Jan 2026</p>
+            <button onclick="closeProfile()" class="mt-8 text-slate-300 font-black text-[10px] uppercase">বন্ধ করুন</button>
         </div>
     </div>
 
-    <script>
-        window.addEventListener('load', () => {
-            const isApp = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-            if (!isApp) document.getElementById('web-download-area').classList.remove('hidden');
-            setTimeout(() => {
-                const splash = document.getElementById('splash-screen');
-                if(splash) { splash.style.opacity = '0'; setTimeout(() => splash.style.display = 'none', 600); }
-            }, 2000);
-        });
-    </script>
     <script src="script.js"></script>
 </body>
-                                                                                        </html>
+    </html>
