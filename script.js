@@ -19,8 +19,7 @@ function togglePass(id, btn) {
     const input = document.getElementById(id);
     const icon = btn.querySelector('i');
     input.type = input.type === "password" ? "text" : "password";
-    icon.classList.toggle('fa-eye'); 
-    icon.classList.toggle('fa-eye-slash');
+    icon.classList.toggle('fa-eye'); icon.classList.toggle('fa-eye-slash');
 }
 
 function toggleAuth(isReg) {
@@ -31,26 +30,26 @@ function toggleAuth(isReg) {
 }
 
 async function handleRegister() {
-    const user = document.getElementById('reg-user').value.trim();
+    const user = document.getElementById('reg-user').value.trim().toLowerCase();
     const p1 = document.getElementById('reg-pass1').value;
     const p2 = document.getElementById('reg-pass2').value;
 
-    if(!user) return showError("ইউজার নেম দিন");
+    if(!user || user.length < 3) return showError("সঠিক ইউজার নেম দিন");
     if(p1.length < 6) return showError("৬ সংখ্যার পাসওয়ার্ড দিন");
-    if(p1 !== p2) return showError("সঠিক পাসওয়ার্ড দিন (মেলেনি)");
+    if(p1 !== p2) return showError("পাসওয়ার্ড মেলেনি");
 
     const snapshot = await rdb.ref('users/' + user).once('value');
-    if (snapshot.exists()) return showError("এই ইউজার নেমটি আগেই নেয়া হয়েছে!");
+    if (snapshot.exists()) return showError("এই নাম আগে ব্যবহার করা হয়েছে");
 
     await rdb.ref('users/' + user).set({
         password: p1,
-        joinDate: new Date().toLocaleDateString('bn-BD')
+        joinDate: new Date().toLocaleDateString('bn-BD', {year:'numeric', month:'long', day:'numeric'})
     });
     login(user);
 }
 
 async function handleLogin() {
-    const user = document.getElementById('login-user').value.trim();
+    const user = document.getElementById('login-user').value.trim().toLowerCase();
     const pass = document.getElementById('login-pass').value;
     if(!user || !pass) return showError("সব তথ্য দিন");
 
@@ -96,7 +95,6 @@ async function loadData(filter = 'home') {
     let filtered = [];
     const today = new Date().toISOString().split('T')[0];
 
-    // ফিল্টার অনুযায়ী ডাটা আলাদা করা
     if(filter === 'today') filtered = records.filter(r => r.date === today);
     else if(filter === 'week') filtered = records.filter(r => r.ts >= (Date.now() - 7*86400000));
     else if(filter === 'month') filtered = records.filter(r => r.date.startsWith(today.substring(0,7)));
@@ -109,12 +107,15 @@ async function loadData(filter = 'home') {
     filtered.sort((a,b) => b.ts - a.ts).forEach(r => {
         if(r.type === 'income') iS += r.amt; else eS += r.amt;
         list.innerHTML += `
-            <div class="bg-white p-5 rounded-[2rem] shadow-sm flex justify-between items-center animate__animated animate__fadeInUp border-l-4 ${r.type==='income'?'border-emerald-500':'border-rose-500'}">
+            <div class="bg-white p-6 rounded-[2.5rem] shadow-sm flex justify-between items-center animate__animated animate__fadeInUp border-l-8 ${r.type==='income'?'border-emerald-500':'border-rose-500'}">
                 <div>
-                    <p class="font-bold text-slate-800 text-sm">${r.desc}</p>
-                    <p class="text-[9px] text-slate-400 font-bold uppercase">${r.date}</p>
+                    <p class="font-black text-slate-800 text-sm">${r.desc}</p>
+                    <p class="text-[9px] text-slate-400 font-bold uppercase mt-1 tracking-widest">${r.date}</p>
                 </div>
-                <p class="text-lg font-black ${r.type==='income'?'text-emerald-500':'text-rose-500'}">৳${r.amt}</p>
+                <div class="text-right">
+                    <p class="text-xl font-black ${r.type==='income'?'text-emerald-500':'text-rose-500'}">৳${r.amt}</p>
+                    <p class="text-[8px] font-black uppercase opacity-30">${r.type}</p>
+                </div>
             </div>`;
     });
 
@@ -122,10 +123,9 @@ async function loadData(filter = 'home') {
     document.getElementById('sum-ex').innerText = eS;
     document.getElementById('total-balance').innerText = iS - eS;
     
-    // ফিল্টার নাম আপডেট
-    const titleMap = { 'home': 'সব সময়', 'today': 'আজকের হিসাব', 'week': 'গত ৭ দিন', 'month': 'এই মাস' };
-    document.getElementById('view-date').innerText = titleMap[filter] || filter;
-
+    const titles = { home: 'সব সময়', today: 'আজকের হিসাব', week: 'গত ৭ দিন', month: 'এই মাস' };
+    document.getElementById('view-date').innerText = titles[filter] || filter;
+    
     if(document.getElementById('sidebar').classList.contains('active')) toggleSidebar();
 }
 
@@ -136,8 +136,10 @@ function toggleSidebar() {
 }
 
 function logout() { 
-    localStorage.removeItem('activeUserPRO'); 
-    location.reload(); 
+    if(confirm("লগআউট করতে চান?")) {
+        localStorage.removeItem('activeUserPRO'); 
+        location.reload(); 
+    }
 }
 
 function closeProfile() { 
@@ -146,8 +148,9 @@ function closeProfile() {
 
 async function openProfile() {
     const snap = await rdb.ref('users/' + currentUser).once('value');
-    document.getElementById('prof-user').innerText = currentUser;
-    document.getElementById('prof-date').innerText = "Joined: " + snap.val().joinDate;
+    const userData = snap.val();
+    document.getElementById('prof-user').innerText = currentUser.toUpperCase();
+    document.getElementById('prof-date').innerText = "সদস্য হয়েছেন: " + (userData.joinDate || "অজানা");
     document.getElementById('profile-modal').classList.remove('hidden');
 }
 
@@ -155,14 +158,13 @@ async function undo() {
     const snap = await rdb.ref('records/' + currentUser).limitToLast(1).once('value');
     if(snap.exists()) {
         const key = Object.keys(snap.val())[0];
-        if(confirm("শেষ লেনদেনটি মুছতে চান?")) {
+        if(confirm("সর্বশেষ লেনদেনটি মুছে ফেলতে চান?")) {
             await rdb.ref('records/' + currentUser + '/' + key).remove();
             loadData(currentFilter);
         }
     }
 }
 
-// সবশেষে অ্যাপ ইনিশিয়েলাইজেশন
 window.onload = () => {
     if(currentUser) {
         document.getElementById('auth-screen').classList.add('hidden');
@@ -170,6 +172,6 @@ window.onload = () => {
         loadData('home');
     }
     if ('serviceWorker' in navigator) { 
-        navigator.serviceWorker.register('sw.js'); 
+        navigator.serviceWorker.register('sw.js').catch(err => console.log("SW Error", err)); 
     }
-      }
+                                       }
