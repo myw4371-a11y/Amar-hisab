@@ -329,3 +329,13 @@ function closeProfile() { document.getElementById('profile-screen').classList.ad
 function openM1() { openSub("টাকা জমা (M1)", "m1"); }
 function openM2() { openSub("বাজার খরচ (M2)", "m2"); }
 function openM3() { openSub("মিল সংখ্যা (M3)", "m3"); }
+// লগআউট ফাংশন যা ইউজারকে বের করে দিবে
+function handleLogout() {
+    if(confirm("আপনি কি নিশ্চিতভাবে লগআউট করতে চান?")) {
+        // ফোন থেকে ইউজারের লগইন তথ্য মুছে ফেলা
+        localStorage.removeItem('activeUserPRO');
+        
+        // পেজটি আবার লোড করা যাতে লগইন স্ক্রিন চলে আসে
+        window.location.reload();
+    }
+    }
