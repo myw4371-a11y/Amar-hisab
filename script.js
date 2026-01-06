@@ -1,140 +1,310 @@
-// --- CONFIGURATION ---
+// ১. ফায়ারবেস সেটআপ
 const firebaseConfig = {
     apiKey: "AIzaSyAyNkZvxqdPsa2E2SXnYVsZe1wENJF1I7E",
     authDomain: "amar-hishab-pro.firebaseapp.com",
-    databaseURL: "https://amar-hishab-pro-default-rtdb.asia-southeast1.firebasedatabase.app/",
     projectId: "amar-hishab-pro",
-    storageBucket: "amar-hishab-pro.appspot.com",
-    messagingSenderId: "669695299386",
-    appId: "1:669695299386:web:c8e58b6249a57123538a03"
+    databaseURL: "https://amar-hishab-pro-default-rtdb.asia-southeast1.firebasedatabase.app/"
 };
 
 firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-let currentUser = localStorage.getItem('proUser');
+const rdb = firebase.database();
+let currentUser = localStorage.getItem('activeUserPRO');
+let telegramJoined = localStorage.getItem('tgJoin_V3') === 'true';
+let currentFilter = 'today';
 
-// --- AUTH SYSTEM ---
+// --- ২. স্প্ল্যাশ ও টেলিগ্রাম সিকিউরিটি ---
+window.onload = () => {
+    setTimeout(() => {
+        document.getElementById('splash').style.display = 'none';
+        if (!telegramJoined) {
+            document.getElementById('telegram-lock').classList.remove('hidden');
+        } else if (currentUser) {
+            startApp();
+        } else {
+            document.getElementById('auth-screen').classList.remove('hidden');
+        }
+    }, 2500);
+}
+
+function verifyTelegramJoin() {
+    localStorage.setItem('tgJoin_V3', 'true');
+    location.reload();
+}
+
+// --- ৩. অথেন্টিকেশন লজিক ---
 function toggleAuth(isReg) {
     document.getElementById('reg-fields').classList.toggle('hidden', !isReg);
     document.getElementById('login-fields').classList.toggle('hidden', isReg);
-    document.getElementById('auth-title').innerText = isReg ? "নতুন অ্যাকাউন্ট" : "স্বাগতম বস!";
+    document.getElementById('auth-title').innerText = isReg ? "রেজিস্ট্রেশন" : "লগইন";
 }
 
 async function handleRegister() {
-    const u = document.getElementById('reg-user').value.trim().toLowerCase();
-    const p = document.getElementById('reg-pass').value;
-    if(!u || p.length < 4) return toast("সঠিক তথ্য দিন!", "err");
-    
-    const s = await db.ref('users/' + u).once('value');
-    if(s.exists()) return toast("ইউজার নেম বুকড!", "err");
-    
-    await db.ref('users/' + u).set({ pass: p, created: Date.now() });
-    loginSuccess(u);
+    const user = document.getElementById('reg-user').value.trim().toLowerCase();
+    const pass = document.getElementById('reg-pass').value;
+    if(!user || pass.length < 4) return alert("তথ্য সঠিক দিন");
+    const snap = await rdb.ref('users/' + user).once('value');
+    if (snap.exists()) return alert("এই নামে ইউজার আছে");
+    await rdb.ref('users/' + user).set({ 
+        pass, joinDate: new Date().toLocaleDateString('bn-BD', {year:'numeric', month:'long', day:'numeric'}) 
+    });
+    loginUser(user);
 }
 
 async function handleLogin() {
-    const u = document.getElementById('login-user').value.trim().toLowerCase();
-    const p = document.getElementById('login-pass').value;
-    const s = await db.ref('users/' + u).once('value');
-    if(s.exists() && s.val().pass === p) loginSuccess(u);
-    else toast("ভুল তথ্য!", "err");
+    const user = document.getElementById('login-user').value.trim().toLowerCase();
+    const pass = document.getElementById('login-pass').value;
+    const snap = await rdb.ref('users/' + user).once('value');
+    if(snap.exists() && snap.val().pass === pass) loginUser(user);
+    else alert("ভুল পাসওয়ার্ড!");
 }
 
-function loginSuccess(u) {
-    localStorage.setItem('proUser', u);
-    location.reload();
+function loginUser(user) { localStorage.setItem('activeUserPRO', user); location.reload(); }
+function logout() { localStorage.removeItem('activeUserPRO'); location.reload(); }
+
+// --- ৪. ডেইলি হিসাব লজিক (Home Page) ---
+function startApp() {
+    document.getElementById('auth-screen').classList.add('hidden');
+    document.getElementById('main-app').classList.remove('hidden');
+    document.getElementById('u-char').innerText = currentUser[0].toUpperCase();
+    loadDailyData(currentFilter);
 }
 
-function logout() {
-    localStorage.clear();
-    location.reload();
-}
-
-// --- CORE LOGIC (Records) ---
-async function addRec(type) {
-    const d = document.getElementById('desc').value;
-    const a = document.getElementById('amt').value;
-    if(!d || !a) return toast("সব ঘর পূরণ করুন!");
-    
-    await db.ref('records/' + currentUser).push({
-        desc: d, amt: Number(a), type: type,
-        ts: Date.now(), date: new Date().toLocaleDateString('bn-BD')
+async function saveDaily() {
+    const desc = document.getElementById('daily-desc').value.trim();
+    const amt = Number(document.getElementById('daily-amt').value);
+    if(!desc || amt <= 0) return;
+    await rdb.ref('daily_records/' + currentUser).push({
+        desc, amt, ts: Date.now(),
+        date: new Date().toISOString().split('T')[0]
     });
-    
-    document.getElementById('desc').value = "";
-    document.getElementById('amt').value = "";
-    toast("লেনদেন সফল!");
-    loadData();
+    document.getElementById('daily-desc').value = ""; document.getElementById('daily-amt').value = "";
+    loadDailyData(currentFilter);
 }
 
-async function loadData() {
-    const snap = await db.ref('records/' + currentUser).once('value');
-    const list = document.getElementById('data-list');
-    list.innerHTML = "";
-    let iSum = 0, eSum = 0;
+async function loadDailyData(filter) {
+    currentFilter = filter;
+    const snap = await rdb.ref('daily_records/' + currentUser).once('value');
+    const records = snap.val() ? Object.values(snap.val()) : [];
     
-    if(!snap.exists()) {
-        list.innerHTML = `<p class="text-center text-slate-600 text-xs py-10">কোনো ডাটা নেই</p>`;
-        return;
-    }
+    const now = new Date();
+    const today = now.toISOString().split('T')[0];
+    
+    let filtered = records;
+    let label = "আজকের খরচ";
 
-    const data = Object.entries(snap.val()).reverse();
-    data.forEach(([id, r]) => {
-        if(r.type === 'income') iSum += r.amt; else eSum += r.amt;
-        const color = r.type === 'income' ? 'emerald' : 'rose';
+    if(filter === 'today') filtered = records.filter(r => r.date === today);
+    else if(filter === 'week') { filtered = records.filter(r => r.ts >= (Date.now() - 7*86400000)); label = "৭ দিনের খরচ"; }
+    else if(filter === 'month') { filtered = records.filter(r => r.date.startsWith(today.substring(0,7))); label = "এই মাসের খরচ"; }
+    else if(filter === 'year') { filtered = records.filter(r => r.date.startsWith(today.substring(0,4))); label = "এই বছরের খরচ"; }
+
+    const total = filtered.reduce((sum, r) => sum + r.amt, 0);
+    document.getElementById('total-summary-amt').innerText = total;
+    document.getElementById('view-title').innerText = label;
+
+    const list = document.getElementById('daily-list'); list.innerHTML = "";
+    filtered.sort((a,b) => b.ts - a.ts).forEach(r => {
         list.innerHTML += `
-            <div class="glass p-5 rounded-[2rem] flex justify-between items-center animate__animated animate__fadeInUp">
-                <div class="flex items-center gap-4">
-                    <div class="w-10 h-10 rounded-xl bg-${color}-500/10 text-${color}-500 flex items-center justify-center">
-                        <i class="fa-solid ${r.type === 'income' ? 'fa-arrow-up' : 'fa-arrow-down'}"></i>
-                    </div>
+            <div class="bg-white p-5 rounded-2xl flex justify-between items-center shadow-sm border-l-4 border-indigo-500">
+                <div><p class="font-bold text-slate-800">${r.desc}</p><p class="text-[8px] text-slate-400 uppercase font-black">${r.date}</p></div>
+                <p class="text-lg font-black text-indigo-600">৳${r.amt}</p>
+            </div>`;
+    });
+}
+
+async function undoDaily() {
+    const snap = await rdb.ref('daily_records/' + currentUser).limitToLast(1).once('value');
+    if(snap.exists() && confirm("শেষ এন্ট্রি মুছবেন?")) {
+        await rdb.ref('daily_records/' + currentUser + '/' + Object.keys(snap.val())[0]).remove();
+        loadDailyData(currentFilter);
+    }
+}
+
+// --- ৫. ম্যানেজারি হিসাব সাব-সিস্টেম (এডভান্সড) ---
+function openManager() { document.getElementById('manager-screen').classList.remove('hidden'); loadManagerHome(); }
+function closeManager() { document.getElementById('manager-screen').classList.add('hidden'); }
+
+async function loadManagerHome() {
+    const snap = await rdb.ref('manager/'+currentUser).once('value');
+    const d = snap.val() || {};
+    const tTaka = d.m1 ? Object.values(d.m1).reduce((s,x)=>s+x.amt, 0) : 0;
+    const tExp = d.m2 ? Object.values(d.m2).reduce((s,x)=>s+x.amt, 0) : 0;
+    const tMeal = d.m3 ? Object.values(d.m3).reduce((s,x)=>s+x.amt, 0) : 0;
+    
+    document.getElementById('m-total-taka').innerText = tTaka;
+    document.getElementById('m-total-exp').innerText = tExp;
+    document.getElementById('m-total-meal').innerText = tMeal;
+    document.getElementById('m-rate').innerText = tMeal > 0 ? (tExp / tMeal).toFixed(2) : "0.00";
+}
+
+// সাব স্ক্রিন কন্ট্রোল (M1, M2, M3, M4)
+let activeSub = '';
+function openSub(title, type) {
+    activeSub = type;
+    document.getElementById('sub-title').innerText = title;
+    document.getElementById('sub-screen').classList.remove('hidden');
+    renderSubInputs(type);
+    loadSubList(type);
+}
+
+function closeSub() { document.getElementById('sub-screen').classList.add('hidden'); }
+
+async function renderSubInputs(type) {
+    const area = document.getElementById('dynamic-inputs'); area.innerHTML = "";
+    if(type === 'm1' || type === 'm3') {
+        area.innerHTML = `
+            <input type="text" id="s-name" placeholder="সদস্যের নাম" class="w-full p-4 bg-slate-50 rounded-2xl outline-none font-bold" ${type === 'm3' ? 'list="m1-names"' : ''}>
+            <input type="number" id="s-amt" placeholder="${type==='m1' ? 'টাকা' : 'মোট মিল'}" class="w-full p-4 bg-slate-50 rounded-2xl outline-none font-black text-2xl">
+            <datalist id="m1-names"></datalist>`;
+        if(type === 'm3') { // M1 থেকে নাম পপুলেট করা
+            const snap = await rdb.ref(`manager/${currentUser}/m1`).once('value');
+            const names = snap.exists() ? [...new Set(Object.values(snap.val()).map(x => x.name))] : [];
+            const dl = document.getElementById('m1-names');
+            names.forEach(n => dl.innerHTML += `<option value="${n}">`);
+        }
+    } else if(type === 'm2') {
+        area.innerHTML = `
+            <input type="text" id="s-desc" placeholder="খরচের বিবরণ" class="w-full p-4 bg-slate-50 rounded-2xl outline-none font-bold">
+            <input type="number" id="s-amt" placeholder="টাকার পরিমাণ" class="w-full p-4 bg-slate-50 rounded-2xl outline-none font-black text-2xl">`;
+    }
+    
+    document.getElementById('sub-add-btn').onclick = () => saveSubEntry(type);
+}
+
+async function saveSubEntry(type) {
+    const amt = Number(document.getElementById('s-amt').value);
+    if(amt <= 0) return;
+    let data = { amt, ts: Date.now() };
+    if(type === 'm1' || type === 'm3') data.name = document.getElementById('s-name').value.trim();
+    if(type === 'm2') data.desc = document.getElementById('s-desc').value.trim();
+    
+    await rdb.ref(`manager/${currentUser}/${type}`).push(data);
+    loadSubList(type); loadManagerHome();
+}
+
+async function loadSubList(type) {
+    const snap = await rdb.ref(`manager/${currentUser}/${type}`).once('value');
+    const list = document.getElementById('sub-list'); list.innerHTML = "";
+    let total = 0;
+    if(snap.exists()) {
+        Object.entries(snap.val()).reverse().forEach(([id, val]) => {
+            total += val.amt;
+            list.innerHTML += `
+                <div class="bg-white p-5 rounded-2xl flex justify-between items-center shadow-sm">
                     <div>
-                        <p class="font-bold text-sm text-white">${r.desc}</p>
-                        <p class="text-[8px] font-black opacity-30 uppercase">${r.date}</p>
+                        <p class="font-black text-slate-800">${val.name || val.desc}</p>
+                        <p class="text-[9px] text-slate-400">${new Date(val.ts).toLocaleDateString()}</p>
                     </div>
+                    <div class="flex items-center gap-4">
+                        <p class="font-black text-indigo-600">${val.amt}</p>
+                        <button onclick="deleteSub('${type}','${id}')" class="text-rose-400"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                </div>`;
+        });
+    }
+    document.getElementById('sub-total-label').innerText = "Total: " + total;
+}
+
+// M4 (মিল রেট ও ফাইনাল হিসাব) লজিক
+async function openM4() {
+    activeSub = 'm4';
+    document.getElementById('sub-title').innerText = "মিল রেট ও রিপোর্ট";
+    document.getElementById('sub-screen').classList.remove('hidden');
+    document.getElementById('sub-input-area').classList.add('hidden');
+    
+    const snap = await rdb.ref('manager/'+currentUser).once('value');
+    const d = snap.val() || {};
+    const tExp = d.m2 ? Object.values(d.m2).reduce((s,x)=>s+x.amt, 0) : 0;
+    const tMeal = d.m3 ? Object.values(d.m3).reduce((s,x)=>s+x.amt, 0) : 0;
+    const rate = tMeal > 0 ? (tExp / tMeal) : 0;
+
+    const list = document.getElementById('sub-list'); list.innerHTML = "";
+    const m1Data = d.m1 ? Object.values(d.m1) : [];
+    const m3Data = d.m3 ? Object.values(d.m3) : [];
+    const names = [...new Set(m1Data.map(x => x.name))];
+
+    names.forEach(n => {
+        const uTaka = m1Data.filter(x => x.name === n).reduce((s,x)=>s+x.amt, 0);
+        const uMeal = m3Data.filter(x => x.name === n).reduce((s,x)=>s+x.amt, 0);
+        const uCost = uMeal * rate;
+        const diff = uTaka - uCost;
+
+        list.innerHTML += `
+            <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-3">
+                <div class="flex justify-between items-center border-b pb-2">
+                    <p class="font-black text-indigo-600">${n}</p>
+                    <p class="text-xs font-bold text-slate-400">মিল: ${uMeal}</p>
                 </div>
-                <div class="text-right">
-                    <p class="text-lg font-black text-${color}-400">৳${r.amt}</p>
-                    <button onclick="delRec('${id}')" class="text-[8px] text-rose-900 font-bold uppercase">Remove</button>
+                <div class="grid grid-cols-2 text-[11px] font-bold text-slate-500">
+                    <p>জমা: ৳${uTaka}</p>
+                    <p>খরচ: ৳${uCost.toFixed(1)}</p>
+                </div>
+                <div class="pt-2 text-center">
+                    ${diff >= 0 ? 
+                        `<p class="text-emerald-500 font-black">ম্যানেজার দিবে: ৳${diff.toFixed(1)}</p>` : 
+                        `<p class="text-rose-500 font-black">ম্যানেজার পাবে: ৳${Math.abs(diff).toFixed(1)}</p>`}
                 </div>
             </div>`;
     });
-
-    document.getElementById('t-in').innerText = iSum.toLocaleString();
-    document.getElementById('t-ex').innerText = eSum.toLocaleString();
-    document.getElementById('balance').innerText = (iSum - eSum).toLocaleString();
 }
 
-async function delRec(id) {
-    if(confirm("রিমুভ করতে চান?")) {
-        await db.ref('records/' + currentUser + '/' + id).remove();
-        loadData();
+// --- ৬. ডিমের হিসাব (স্টক লজিক) ---
+async function openEgg() {
+    activeSub = 'egg';
+    document.getElementById('sub-title').innerText = "ডিমের হিসাব";
+    document.getElementById('sub-screen').classList.remove('hidden');
+    document.getElementById('sub-input-area').classList.remove('hidden');
+    document.getElementById('dynamic-inputs').innerHTML = `
+        <select id="e-type" class="w-full p-4 bg-slate-50 rounded-2xl outline-none font-bold">
+            <option value="buy">ডিম কেনা (Stock In)</option>
+            <option value="use">ডিম খরচ (Stock Out)</option>
+        </select>
+        <input type="number" id="e-qty" placeholder="সংখ্যা (টি)" class="w-full p-4 bg-slate-50 rounded-2xl outline-none font-black text-2xl">`;
+    
+    document.getElementById('sub-add-btn').onclick = saveEgg;
+    loadEggList();
+}
+
+async function saveEgg() {
+    const type = document.getElementById('e-type').value;
+    const qty = Number(document.getElementById('e-qty').value);
+    if(qty <= 0) return;
+    await rdb.ref(`manager/${currentUser}/eggs`).push({ type, qty, ts: Date.now() });
+    loadEggList();
+}
+
+async function loadEggList() {
+    const snap = await rdb.ref(`manager/${currentUser}/eggs`).once('value');
+    const list = document.getElementById('sub-list'); list.innerHTML = "";
+    let stock = 0;
+    if(snap.exists()){
+        Object.entries(snap.val()).reverse().forEach(([id, e]) => {
+            if(e.type === 'buy') stock += e.qty; else stock -= e.qty;
+            list.innerHTML += `
+                <div class="bg-white p-4 rounded-2xl flex justify-between items-center shadow-sm">
+                    <p class="font-bold text-slate-700">${e.type==='buy'?'কিনেছে':'খরচ'}</p>
+                    <p class="font-black ${e.type==='buy'?'text-emerald-500':'text-rose-500'}">${e.qty} টি</p>
+                </div>`;
+        });
     }
+    document.getElementById('sub-total-label').innerText = "বর্তমানে আছে: " + stock + " টি";
 }
 
-// --- UI HELPERS ---
-function toast(m, type = "success") {
-    const t = document.getElementById('auth-err');
-    t.innerText = m;
-    t.style.color = type === "success" ? "#34d399" : "#fb7185";
-    t.classList.remove('hidden');
-    setTimeout(() => t.classList.add('hidden'), 3000);
+// --- ৭. ইউটিলিটি ফাংশনস ---
+function toggleSidebar(s) { document.getElementById('sidebar').classList.toggle('active', s); document.getElementById('sidebar-overlay').classList.toggle('hidden', !s); }
+function applyFilter(f) { loadDailyData(f); toggleSidebar(false); }
+function closeSub() { document.getElementById('sub-screen').classList.add('hidden'); document.getElementById('sub-input-area').classList.remove('hidden'); }
+async function resetManager() { if(confirm("পুরো ম্যানেজারি হিসাব রিসেট হবে! নিশ্চিত?")) { await rdb.ref('manager/'+currentUser).remove(); loadManagerHome(); } }
+async function deleteSub(t, id) { if(confirm("মুছে ফেলবেন?")) { await rdb.ref(`manager/${currentUser}/${t}/${id}`).remove(); loadSubList(t); loadManagerHome(); } }
+async function showProfile() { 
+    const s = await rdb.ref('users/'+currentUser).once('value');
+    document.getElementById('p-name').innerText = currentUser.toUpperCase();
+    document.getElementById('p-avatar').innerText = currentUser[0].toUpperCase();
+    document.getElementById('p-join').innerText = s.val().joinDate;
+    document.getElementById('profile-screen').classList.remove('hidden'); 
 }
+function closeProfile() { document.getElementById('profile-screen').classList.add('hidden'); }
 
-window.onload = () => {
-    setTimeout(() => {
-        document.getElementById('splash').classList.add('animate__fadeOut');
-        setTimeout(() => document.getElementById('splash').style.display = 'none', 500);
-    }, 2000);
-
-    if(currentUser) {
-        document.getElementById('auth-screen').style.display = 'none';
-        document.getElementById('main-app').classList.remove('hidden');
-        document.getElementById('nav-user').innerText = currentUser.toUpperCase();
-        document.getElementById('avatar').innerText = currentUser[0].toUpperCase();
-        loadData();
-    }
-};
-
-// --- EGG & MANAGER FUNCTIONS (Simplified Example) ---
-// তুমি একই ভাবে 'eggs/' এবং 'manager/' নোডে ডাটা সেভ এবং রিড করতে পারবে।
+// শর্টকাট বাটন বাইন্ডিং
+function openM1() { openSub("টাকা জমা (M1)", "m1"); }
+function openM2() { openSub("বাজার খরচ (M2)", "m2"); }
+function openM3() { openSub("মিল সংখ্যা (M3)", "m3"); }
