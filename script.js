@@ -15,90 +15,67 @@ let currentUser = localStorage.getItem('activeUserPRO');
 let currentFilter = 'home';
 
 // --- ২. Auth Logic ---
-function togglePass(id, btn) {
-    const input = document.getElementById(id);
-    const icon = btn.querySelector('i');
-    input.type = input.type === "password" ? "text" : "password";
-    icon.classList.toggle('fa-eye'); icon.classList.toggle('fa-eye-slash');
-}
-
 function toggleAuth(isReg) {
     document.getElementById('reg-fields').classList.toggle('hidden', !isReg);
     document.getElementById('login-fields').classList.toggle('hidden', isReg);
     document.getElementById('auth-title').innerText = isReg ? "রেজিস্ট্রেশন" : "লগইন";
-    document.getElementById('auth-error').classList.add('hidden');
 }
 
 async function handleRegister() {
     const user = document.getElementById('reg-user').value.trim().toLowerCase();
-    const p1 = document.getElementById('reg-pass1').value;
-    const p2 = document.getElementById('reg-pass2').value;
-
-    if(!user || user.length < 3) return showError("সঠিক ইউজার নেম দিন");
-    if(p1.length < 6) return showError("৬ সংখ্যার পাসওয়ার্ড দিন");
-    if(p1 !== p2) return showError("পাসওয়ার্ড মেলেনি");
-
-    const snapshot = await rdb.ref('users/' + user).once('value');
-    if (snapshot.exists()) return showError("এই নাম আগে ব্যবহার করা হয়েছে");
-
-    await rdb.ref('users/' + user).set({
-        password: p1,
-        joinDate: new Date().toLocaleDateString('bn-BD', {year:'numeric', month:'long', day:'numeric'})
-    });
+    const pass = document.getElementById('reg-pass1').value;
+    if(!user || pass.length < 4) return showError("সঠিক তথ্য দিন");
+    const snap = await rdb.ref('users/' + user).once('value');
+    if (snap.exists()) return showError("নামটি আগেই নেয়া হয়েছে");
+    await rdb.ref('users/' + user).set({ password: pass, joinDate: new Date().toLocaleDateString('bn-BD', {year:'numeric', month:'long'}) });
     login(user);
 }
 
 async function handleLogin() {
     const user = document.getElementById('login-user').value.trim().toLowerCase();
     const pass = document.getElementById('login-pass').value;
-    if(!user || !pass) return showError("সব তথ্য দিন");
-
-    const snapshot = await rdb.ref('users/' + user).once('value');
-    if(snapshot.exists() && snapshot.val().password === pass) login(user);
-    else showError("ভুল পাসওয়ার্ড বা ইউজার নেম");
+    const snap = await rdb.ref('users/' + user).once('value');
+    if(snap.exists() && snap.val().password === pass) login(user);
+    else showError("ভুল পাসওয়ার্ড বা ইউজারনেম");
 }
 
-function login(user) {
-    localStorage.setItem('activeUserPRO', user);
-    location.reload();
-}
-
-function showError(m) {
-    const el = document.getElementById('auth-error');
-    el.innerText = m; el.classList.remove('hidden');
-}
+function login(user) { localStorage.setItem('activeUserPRO', user); location.reload(); }
+function showError(m) { const el = document.getElementById('auth-error'); el.innerText = m; el.classList.remove('hidden'); }
 
 // --- ৩. Core Hishab Logic ---
 async function save(type) {
     const desc = document.getElementById('desc').value.trim();
     const amt = document.getElementById('amt').value;
     if(!desc || amt <= 0) return;
-
-    const data = {
+    await rdb.ref('records/' + currentUser).push({
         desc, amt: Number(amt), type,
         date: new Date().toISOString().split('T')[0],
         ts: Date.now()
-    };
-
-    await rdb.ref('records/' + currentUser).push(data);
-    document.getElementById('desc').value = "";
-    document.getElementById('amt').value = "";
+    });
+    document.getElementById('desc').value = ""; document.getElementById('amt').value = "";
     loadData(currentFilter);
 }
 
 async function loadData(filter = 'home') {
     currentFilter = filter;
     const snap = await rdb.ref('records/' + currentUser).once('value');
-    const val = snap.val();
-    const records = val ? Object.values(val) : [];
+    const records = snap.val() ? Object.values(snap.val()) : [];
     
-    let filtered = [];
-    const today = new Date().toISOString().split('T')[0];
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+    const currentMonth = todayStr.substring(0, 7); // 2026-01
+    
+    // গত মাসের হিসাব বের করার লজিক
+    const d = new Date();
+    d.setMonth(d.getMonth() - 1);
+    const lastMonth = d.toISOString().substring(0, 7); // 2025-12
 
-    if(filter === 'today') filtered = records.filter(r => r.date === today);
-    else if(filter === 'week') filtered = records.filter(r => r.ts >= (Date.now() - 7*86400000));
-    else if(filter === 'month') filtered = records.filter(r => r.date.startsWith(today.substring(0,7)));
-    else filtered = records;
+    let filtered = records;
+    if (filter === 'today') filtered = records.filter(r => r.date === todayStr);
+    else if (filter === 'week') filtered = records.filter(r => r.ts >= (Date.now() - 7 * 86400000));
+    else if (filter === 'month') filtered = records.filter(r => r.date.startsWith(currentMonth));
+    else if (filter === 'last_month') filtered = records.filter(r => r.date.startsWith(lastMonth));
+    else if (filter === 'year') filtered = records.filter(r => r.date.startsWith(todayStr.substring(0, 4)));
 
     const list = document.getElementById('data-list');
     list.innerHTML = "";
@@ -106,16 +83,11 @@ async function loadData(filter = 'home') {
 
     filtered.sort((a,b) => b.ts - a.ts).forEach(r => {
         if(r.type === 'income') iS += r.amt; else eS += r.amt;
+        const color = r.type === 'income' ? 'emerald' : 'rose';
         list.innerHTML += `
-            <div class="bg-white p-6 rounded-[2.5rem] shadow-sm flex justify-between items-center animate__animated animate__fadeInUp border-l-8 ${r.type==='income'?'border-emerald-500':'border-rose-500'}">
-                <div>
-                    <p class="font-black text-slate-800 text-sm">${r.desc}</p>
-                    <p class="text-[9px] text-slate-400 font-bold uppercase mt-1 tracking-widest">${r.date}</p>
-                </div>
-                <div class="text-right">
-                    <p class="text-xl font-black ${r.type==='income'?'text-emerald-500':'text-rose-500'}">৳${r.amt}</p>
-                    <p class="text-[8px] font-black uppercase opacity-30">${r.type}</p>
-                </div>
+            <div class="bg-white p-6 rounded-[2.5rem] shadow-sm flex justify-between items-center animate__animated animate__fadeInUp border border-slate-50">
+                <div><p class="font-black text-slate-800 text-sm">${r.desc}</p><p class="text-[9px] text-slate-400 font-bold tracking-widest uppercase">${r.date}</p></div>
+                <p class="text-xl font-black text-${color}-500">৳${r.amt}</p>
             </div>`;
     });
 
@@ -123,55 +95,28 @@ async function loadData(filter = 'home') {
     document.getElementById('sum-ex').innerText = eS;
     document.getElementById('total-balance').innerText = iS - eS;
     
-    const titles = { home: 'সব সময়', today: 'আজকের হিসাব', week: 'গত ৭ দিন', month: 'এই মাস' };
+    const titles = { home: 'সব সময়', today: 'আজ', week: 'এই সপ্তাহ', month: 'এই মাস', last_month: 'পুরানো মাস', year: 'এই বছর' };
     document.getElementById('view-date').innerText = titles[filter] || filter;
-    
     if(document.getElementById('sidebar').classList.contains('active')) toggleSidebar();
 }
 
-// --- ৪. Utility ---
-function toggleSidebar() { 
-    document.getElementById('sidebar').classList.toggle('active'); 
-    document.getElementById('sidebar-overlay').classList.toggle('hidden'); 
-}
-
-function logout() { 
-    if(confirm("লগআউট করতে চান?")) {
-        localStorage.removeItem('activeUserPRO'); 
-        location.reload(); 
-    }
-}
-
-function closeProfile() { 
-    document.getElementById('profile-modal').classList.add('hidden'); 
-}
-
+// --- ৪. Extra Functions ---
+function toggleSidebar() { document.getElementById('sidebar').classList.toggle('active'); document.getElementById('sidebar-overlay').classList.toggle('hidden'); }
+function logout() { localStorage.removeItem('activeUserPRO'); location.reload(); }
 async function openProfile() {
     const snap = await rdb.ref('users/' + currentUser).once('value');
-    const userData = snap.val();
     document.getElementById('prof-user').innerText = currentUser.toUpperCase();
-    document.getElementById('prof-date').innerText = "সদস্য হয়েছেন: " + (userData.joinDate || "অজানা");
+    document.getElementById('user-avatar').innerText = currentUser[0].toUpperCase();
+    document.getElementById('prof-date').innerText = "Joined: " + snap.val().joinDate;
     document.getElementById('profile-modal').classList.remove('hidden');
 }
-
+function closeProfile() { document.getElementById('profile-modal').classList.add('hidden'); }
 async function undo() {
     const snap = await rdb.ref('records/' + currentUser).limitToLast(1).once('value');
-    if(snap.exists()) {
-        const key = Object.keys(snap.val())[0];
-        if(confirm("সর্বশেষ লেনদেনটি মুছে ফেলতে চান?")) {
-            await rdb.ref('records/' + currentUser + '/' + key).remove();
-            loadData(currentFilter);
-        }
+    if(snap.exists() && confirm("সর্বশেষ ডাটাটি মুছবেন?")) {
+        await rdb.ref('records/' + currentUser + '/' + Object.keys(snap.val())[0]).remove();
+        loadData(currentFilter);
     }
 }
 
-window.onload = () => {
-    if(currentUser) {
-        document.getElementById('auth-screen').classList.add('hidden');
-        document.getElementById('main-app').classList.remove('hidden');
-        loadData('home');
-    }
-    if ('serviceWorker' in navigator) { 
-        navigator.serviceWorker.register('sw.js').catch(err => console.log("SW Error", err)); 
-    }
-                                       }
+window.onload = () => { if(currentUser) { document.getElementById('auth-screen').classList.add('hidden'); document.getElementById('main-app').classList.remove('hidden'); loadData('home'); } }
