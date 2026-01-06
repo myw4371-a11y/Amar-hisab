@@ -339,3 +339,26 @@ function handleLogout() {
         window.location.reload();
     }
     }
+// ডাউনলোড ফিক্স করার ফাংশন
+async function startDownload() {
+    // আপনার গিটহাবের সেই ডাইরেক্ট লিঙ্ক
+    const apkUrl = "https://github.com/myw4371-a11y/Amar-hisab/raw/refs/heads/main/app-release.apk";
+    
+    alert("ডাউনলোড শুরু হচ্ছে, দয়া করে অপেক্ষা করুন...");
+
+    try {
+        const response = await fetch(apkUrl);
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'Amar_Hisab_V3.apk'; // ফোনে এই নামে সেভ হবে
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+    } catch (e) {
+        // যদি উপরের কোড কাজ না করে তবে সরাসরি লিঙ্কে নিয়ে যাবে
+        window.location.href = apkUrl;
+    }
+}
