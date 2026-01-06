@@ -31,36 +31,57 @@ function verifyTelegramJoin() {
     location.reload();
 }
 
-// --- ৩. অথেন্টিকেশন লজিক ---
-function toggleAuth(isReg) {
-    document.getElementById('reg-fields').classList.toggle('hidden', !isReg);
-    document.getElementById('login-fields').classList.toggle('hidden', isReg);
-    document.getElementById('auth-title').innerText = isReg ? "রেজিস্ট্রেশন" : "লগইন";
-}
+// --- ৩. অথেন্টিকেশন লজিক (বড় হাতের অক্ষর সাপোর্ট সহ) ---
 
 async function handleRegister() {
-    const user = document.getElementById('reg-user').value.trim().toLowerCase();
+    // .toLowerCase() সরিয়ে দেওয়া হয়েছে, তাই বড় হাতের অক্ষরেই জমা হবে
+    const user = document.getElementById('reg-user').value.trim();
     const pass = document.getElementById('reg-pass').value;
-    if(!user || pass.length < 4) return alert("তথ্য সঠিক দিন");
+
+    if(!user || pass.length < 4) return alert("সঠিক ইউজার নেম ও পাসওয়ার্ড দিন");
+
     const snap = await rdb.ref('users/' + user).once('value');
-    if (snap.exists()) return alert("এই নামে ইউজার আছে");
+    if (snap.exists()) return alert("এই ইউজার আছে!");
+
     await rdb.ref('users/' + user).set({ 
-        pass, joinDate: new Date().toLocaleDateString('bn-BD', {year:'numeric', month:'long', day:'numeric'}) 
+        pass: pass, 
+        joinDate: new Date().toLocaleDateString('bn-BD') 
     });
+
+    alert("রেজিস্ট্রেশন সফল!");
     loginUser(user);
 }
 
 async function handleLogin() {
-    const user = document.getElementById('login-user').value.trim().toLowerCase();
+    const user = document.getElementById('login-user').value.trim();
     const pass = document.getElementById('login-pass').value;
+
+    if(!user || !pass) return alert("ঘরগুলো পূরণ করুন");
+
     const snap = await rdb.ref('users/' + user).once('value');
-    if(snap.exists() && snap.val().pass === pass) loginUser(user);
-    else alert("ভুল পাসওয়ার্ড!");
+    if(snap.exists()){
+        const userData = snap.val();
+        if(userData.pass === pass) {
+            loginUser(user);
+        } else {
+            alert("ভুল পাসওয়ার্ড!");
+        }
+    } else {
+        alert("ইউজার পাওয়া যায়নি! বড়/ছোট অক্ষর ঠিক করে লিখুন।");
+    }
 }
 
-function loginUser(user) { localStorage.setItem('activeUserPRO', user); location.reload(); }
-function logout() { localStorage.removeItem('activeUserPRO'); location.reload(); }
+function loginUser(user) { 
+    localStorage.setItem('activeUserPRO', user); 
+    // সরাসরি মেইন অ্যাপে রিডাইরেক্ট
+    window.location.reload(); 
+}
 
+function toggleAuth(isReg) {
+    document.getElementById('auth-title').innerText = isReg ? "রেজিস্ট্রেশন" : "লগইন";
+    document.getElementById('reg-fields').classList.toggle('hidden', !isReg);
+    document.getElementById('login-fields').classList.toggle('hidden', isReg);
+}
 // --- ৪. ডেইলি হিসাব লজিক (Home Page) ---
 function startApp() {
     document.getElementById('auth-screen').classList.add('hidden');
