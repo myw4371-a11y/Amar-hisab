@@ -1,175 +1,140 @@
-// ১. Firebase Setup (আপনার লিঙ্কগুলো ঠিক আছে)
+// --- CONFIGURATION ---
 const firebaseConfig = {
-  apiKey: "AIzaSyAyNkZvxqdPsa2E2SXnYVsZe1wENJF1I7E",
-  authDomain: "amar-hishab-pro.firebaseapp.com",
-  projectId: "amar-hishab-pro",
-  databaseURL: "https://amar-hishab-pro-default-rtdb.asia-southeast1.firebasedatabase.app/"
+    apiKey: "AIzaSyAyNkZvxqdPsa2E2SXnYVsZe1wENJF1I7E",
+    authDomain: "amar-hishab-pro.firebaseapp.com",
+    databaseURL: "https://amar-hishab-pro-default-rtdb.asia-southeast1.firebasedatabase.app/",
+    projectId: "amar-hishab-pro",
+    storageBucket: "amar-hishab-pro.appspot.com",
+    messagingSenderId: "669695299386",
+    appId: "1:669695299386:web:c8e58b6249a57123538a03"
 };
 
 firebase.initializeApp(firebaseConfig);
-const rdb = firebase.database();
-let currentUser = localStorage.getItem('activeUserPRO');
-let currentFilter = 'home';
-let managerType = '';
+const db = firebase.database();
+let currentUser = localStorage.getItem('proUser');
 
-// --- ২. Auth Logic ---
+// --- AUTH SYSTEM ---
 function toggleAuth(isReg) {
-    document.getElementById('reg-box').classList.toggle('hidden', !isReg);
-    document.getElementById('login-box').classList.toggle('hidden', isReg);
-    document.getElementById('auth-title').innerText = isReg ? "রেজিস্ট্রেশন" : "লগইন";
+    document.getElementById('reg-fields').classList.toggle('hidden', !isReg);
+    document.getElementById('login-fields').classList.toggle('hidden', isReg);
+    document.getElementById('auth-title').innerText = isReg ? "নতুন অ্যাকাউন্ট" : "স্বাগতম বস!";
 }
 
 async function handleRegister() {
-    const user = document.getElementById('r-user').value.trim().toLowerCase();
-    const pass = document.getElementById('r-pass').value;
-    if(!user || pass.length < 4) return msg("সঠিক তথ্য দিন");
-    const s = await rdb.ref('users/' + user).once('value');
-    if(s.exists()) return msg("ইউজার আছে");
-    await rdb.ref('users/' + user).set({ pass, date: new Date().toLocaleDateString('bn-BD') });
-    login(user);
+    const u = document.getElementById('reg-user').value.trim().toLowerCase();
+    const p = document.getElementById('reg-pass').value;
+    if(!u || p.length < 4) return toast("সঠিক তথ্য দিন!", "err");
+    
+    const s = await db.ref('users/' + u).once('value');
+    if(s.exists()) return toast("ইউজার নেম বুকড!", "err");
+    
+    await db.ref('users/' + u).set({ pass: p, created: Date.now() });
+    loginSuccess(u);
 }
 
 async function handleLogin() {
-    const user = document.getElementById('l-user').value.trim().toLowerCase();
-    const pass = document.getElementById('l-pass').value;
-    const s = await rdb.ref('users/' + user).once('value');
-    if(s.exists() && s.val().pass === pass) login(user);
-    else msg("ভুল তথ্য");
+    const u = document.getElementById('login-user').value.trim().toLowerCase();
+    const p = document.getElementById('login-pass').value;
+    const s = await db.ref('users/' + u).once('value');
+    if(s.exists() && s.val().pass === p) loginSuccess(u);
+    else toast("ভুল তথ্য!", "err");
 }
 
-function login(u) { localStorage.setItem('activeUserPRO', u); location.reload(); }
-function msg(m) { const e = document.getElementById('error-msg'); e.innerText = m; e.classList.remove('hidden'); }
-
-// --- ৩. Core Hishab Logic (Filter Perfect Fix) ---
-async function saveRec(type) {
-    const desc = document.getElementById('desc').value;
-    const amt = document.getElementById('amt').value;
-    if(!desc || !amt) return;
-    await rdb.ref('records/' + currentUser).push({
-        desc, amt: Number(amt), type,
-        date: new Date().toISOString().split('T')[0],
-        ts: Date.now()
-    });
-    document.getElementById('desc').value = ""; document.getElementById('amt').value = "";
-    loadData(currentFilter);
+function loginSuccess(u) {
+    localStorage.setItem('proUser', u);
+    location.reload();
 }
 
-async function loadData(filter = 'home') {
-    currentFilter = filter;
-    const snap = await rdb.ref('records/' + currentUser).once('value');
-    const data = snap.val() ? Object.values(snap.val()) : [];
+function logout() {
+    localStorage.clear();
+    location.reload();
+}
+
+// --- CORE LOGIC (Records) ---
+async function addRec(type) {
+    const d = document.getElementById('desc').value;
+    const a = document.getElementById('amt').value;
+    if(!d || !a) return toast("সব ঘর পূরণ করুন!");
     
-    const now = new Date();
-    const today = now.toISOString().split('T')[0];
-    const month = today.substring(0, 7);
-    const year = today.substring(0, 4);
+    await db.ref('records/' + currentUser).push({
+        desc: d, amt: Number(a), type: type,
+        ts: Date.now(), date: new Date().toLocaleDateString('bn-BD')
+    });
+    
+    document.getElementById('desc').value = "";
+    document.getElementById('amt').value = "";
+    toast("লেনদেন সফল!");
+    loadData();
+}
 
-    let filtered = data;
-    if(filter === 'today') filtered = data.filter(r => r.date === today);
-    else if(filter === 'week') filtered = data.filter(r => r.ts >= (Date.now() - 7*86400000));
-    else if(filter === 'month') filtered = data.filter(r => r.date.startsWith(month));
-    else if(filter === 'year') filtered = data.filter(r => r.date.startsWith(year));
-    else if(filter === 'last_month') {
-        let lm = new Date(); lm.setMonth(lm.getMonth()-1);
-        filtered = data.filter(r => r.date.startsWith(lm.toISOString().substring(0, 7)));
+async function loadData() {
+    const snap = await db.ref('records/' + currentUser).once('value');
+    const list = document.getElementById('data-list');
+    list.innerHTML = "";
+    let iSum = 0, eSum = 0;
+    
+    if(!snap.exists()) {
+        list.innerHTML = `<p class="text-center text-slate-600 text-xs py-10">কোনো ডাটা নেই</p>`;
+        return;
     }
 
-    const list = document.getElementById('data-list'); list.innerHTML = "";
-    let inS = 0, exS = 0;
-
-    filtered.sort((a,b) => b.ts - a.ts).forEach(r => {
+    const data = Object.entries(snap.val()).reverse();
+    data.forEach(([id, r]) => {
+        if(r.type === 'income') iSum += r.amt; else eSum += r.amt;
         const color = r.type === 'income' ? 'emerald' : 'rose';
-        if(r.type === 'income') inS += r.amt; else exS += r.amt;
         list.innerHTML += `
-            <div class="bg-white p-5 rounded-[2rem] shadow-sm flex justify-between items-center border border-slate-50">
-                <div><p class="font-bold text-slate-800 text-sm">${r.desc}</p><p class="text-[8px] text-slate-400 font-black">${r.date}</p></div>
-                <p class="font-black text-${color}-500">৳${r.amt}</p>
+            <div class="glass p-5 rounded-[2rem] flex justify-between items-center animate__animated animate__fadeInUp">
+                <div class="flex items-center gap-4">
+                    <div class="w-10 h-10 rounded-xl bg-${color}-500/10 text-${color}-500 flex items-center justify-center">
+                        <i class="fa-solid ${r.type === 'income' ? 'fa-arrow-up' : 'fa-arrow-down'}"></i>
+                    </div>
+                    <div>
+                        <p class="font-bold text-sm text-white">${r.desc}</p>
+                        <p class="text-[8px] font-black opacity-30 uppercase">${r.date}</p>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <p class="text-lg font-black text-${color}-400">৳${r.amt}</p>
+                    <button onclick="delRec('${id}')" class="text-[8px] text-rose-900 font-bold uppercase">Remove</button>
+                </div>
             </div>`;
     });
 
-    document.getElementById('in-sum').innerText = inS;
-    document.getElementById('ex-sum').innerText = exS;
-    document.getElementById('bal').innerText = inS - exS;
-    document.getElementById('filter-text').innerText = filter.toUpperCase();
-    toggleSidebar(false);
+    document.getElementById('t-in').innerText = iSum.toLocaleString();
+    document.getElementById('t-ex').innerText = eSum.toLocaleString();
+    document.getElementById('balance').innerText = (iSum - eSum).toLocaleString();
 }
 
-// --- ৪. Manager Logic ---
-function openManager() { document.getElementById('manager-screen').classList.remove('hidden'); loadManager(); }
-function closeManager() { document.getElementById('manager-screen').classList.add('hidden'); }
-
-function mAdd(type) {
-    managerType = type;
-    document.getElementById('m-modal-title').innerText = type === 'money' ? 'টাকা জমা' : type === 'exp' ? 'বাজার খরচ' : 'মিল সংখ্যা';
-    document.getElementById('m-modal').classList.remove('hidden');
-}
-
-async function saveMEntry() {
-    const name = document.getElementById('m-name').value.trim();
-    const amt = Number(document.getElementById('m-amt').value);
-    if(!name || !amt) return;
-    await rdb.ref('manager/'+currentUser+'/'+managerType).push({ name, amt, ts: Date.now() });
-    document.getElementById('m-amt').value = ""; document.getElementById('m-modal').classList.add('hidden');
-    loadManager();
-}
-
-async function loadManager() {
-    const snap = await rdb.ref('manager/'+currentUser).once('value');
-    const d = snap.val() || {};
-    const monL = d.money ? Object.values(d.money) : [];
-    const expL = d.exp ? Object.values(d.exp) : [];
-    const melL = d.meal ? Object.values(d.meal) : [];
-
-    let tMon = monL.reduce((s,x)=>s+x.amt, 0);
-    let tExp = expL.reduce((s,x)=>s+x.amt, 0);
-    let tMel = melL.reduce((s,x)=>s+x.amt, 0);
-    let rate = tMel > 0 ? tExp / tMel : 0;
-
-    document.getElementById('m-total-cash').innerText = tMon;
-    document.getElementById('m-total-exp').innerText = tExp;
-    document.getElementById('m-total-meal').innerText = tMel;
-    document.getElementById('m-rate').innerText = rate.toFixed(2);
-
-    const list = document.getElementById('m-list'); list.innerHTML = "";
-    const names = [...new Set([...monL.map(x=>x.name), ...melL.map(x=>x.name)])];
-
-    names.forEach(n => {
-        let uMon = monL.filter(x=>x.name===n).reduce((s,x)=>s+x.amt, 0);
-        let uMel = melL.filter(x=>x.name===n).reduce((s,x)=>s+x.amt, 0);
-        let uCost = uMel * rate;
-        let diff = uMon - uCost;
-        list.innerHTML += `<tr class="border-b">
-            <td class="p-4 text-indigo-600">${n}</td>
-            <td>${uMon}</td><td>${uMel}</td><td>${uCost.toFixed(0)}</td>
-            <td class="${diff >= 0 ? 'text-emerald-500' : 'text-rose-500'}">${diff >= 0 ? 'পাবে' : 'দিবে'}</td>
-        </tr>`;
-    });
-}
-
-// --- ৫. Extra Functions ---
-function toggleSidebar(show) { 
-    document.getElementById('sidebar').classList.toggle('active', show); 
-    document.getElementById('sidebar-overlay').classList.toggle('hidden', !show); 
-}
-function logout() { localStorage.removeItem('activeUserPRO'); location.reload(); }
-
-async function resetManager() {
-    if(confirm("সব ম্যানেজারি ডাটা মুছে যাবে! নিশ্চিত?")) {
-        await rdb.ref('manager/'+currentUser).remove(); loadManager();
+async function delRec(id) {
+    if(confirm("রিমুভ করতে চান?")) {
+        await db.ref('records/' + currentUser + '/' + id).remove();
+        loadData();
     }
 }
 
-function openProfile() { alert("ইউজার: " + currentUser.toUpperCase()); }
+// --- UI HELPERS ---
+function toast(m, type = "success") {
+    const t = document.getElementById('auth-err');
+    t.innerText = m;
+    t.style.color = type === "success" ? "#34d399" : "#fb7185";
+    t.classList.remove('hidden');
+    setTimeout(() => t.classList.add('hidden'), 3000);
+}
 
-// --- ৬. Initialization ---
 window.onload = () => {
     setTimeout(() => {
-        document.getElementById('splash').style.display = 'none';
-        if(currentUser) {
-            document.getElementById('auth-screen').classList.add('hidden');
-            document.getElementById('main-app').classList.remove('hidden');
-            document.getElementById('u-initial').innerText = currentUser[0].toUpperCase();
-            loadData('home');
-        }
+        document.getElementById('splash').classList.add('animate__fadeOut');
+        setTimeout(() => document.getElementById('splash').style.display = 'none', 500);
     }, 2000);
-                               }
+
+    if(currentUser) {
+        document.getElementById('auth-screen').style.display = 'none';
+        document.getElementById('main-app').classList.remove('hidden');
+        document.getElementById('nav-user').innerText = currentUser.toUpperCase();
+        document.getElementById('avatar').innerText = currentUser[0].toUpperCase();
+        loadData();
+    }
+};
+
+// --- EGG & MANAGER FUNCTIONS (Simplified Example) ---
+// তুমি একই ভাবে 'eggs/' এবং 'manager/' নোডে ডাটা সেভ এবং রিড করতে পারবে।
