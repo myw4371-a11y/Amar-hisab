@@ -51,19 +51,29 @@ function getTodayDateString() {
  * ডেটা Firebase-এ সেভ করার আগে জাভা-কে জানানো হবে
  */
 function saveDataToDB(refPath, data, key = null) {
-    // ১. Firebase এ সেভ
+    // ১. Firebase এ সেভ (পুশ হলে নতুন কী তৈরি হয়)
     const ref = rdb.ref(refPath);
+    let finalKey = key;
+    
     if (key) {
         ref.child(key).set(data);
     } else {
-        ref.push(data);
+        const newRef = ref.push();
+        newRef.set(data);
+        finalKey = newRef.key;
     }
 
     // ২. অফলাইন লজিক: জাভা ইন্টারফেসের মাধ্যমে লোকালে সংরক্ষণ
     if (typeof AndroidInterface !== 'undefined' && AndroidInterface.saveDataLocally) {
-        // জাভা-কে ডেটা এবং একটি 'unsynced' ফ্ল্যাগসহ সেভ করতে বলা
-        const localData = { ...data, isSynced: false, ref: refPath, localKey: key || Date.now() };
-        AndroidInterface.saveDataLocally(JSON.stringify(localData), refPath);
+        // জাভা-কে ডেটা, একটি 'unsynced' ফ্ল্যাগ, এবং Firebase key সহ সেভ করতে বলা
+        const localData = { 
+            ...data, 
+            isSynced: true, // এটি সার্ভারে পাঠানো হচ্ছে, তাই true
+            refPath: refPath, 
+            firebaseKey: finalKey 
+        };
+        // ডেটা JSON স্ট্রিং আকারে পাঠানো
+        AndroidInterface.saveDataLocally(JSON.stringify(localData), refPath, finalKey);
     }
 }
 
@@ -73,18 +83,23 @@ async function handleRegister() {
     const pass = document.getElementById('reg-pass').value;
 
     if(!user || pass.length < 4) return alert("সঠিক ইউজার নেম ও পাসওয়ার্ড দিন");
+    
+    try {
+        const snap = await rdb.ref('users/' + user).once('value');
+        if (snap.exists()) return alert("এই ইউজার আছে!");
 
-    const snap = await rdb.ref('users/' + user).once('value');
-    if (snap.exists()) return alert("এই ইউজার আছে!");
+        // ডেটাবেসে ইউজার সেভ করা
+        saveDataToDB('users/' + user, { 
+            pass: pass, 
+            joinDate: new Date().toLocaleDateString('bn-BD') 
+        }, user);
 
-    // ডেটাবেসে ইউজার সেভ করা
-    saveDataToDB('users/' + user, { 
-        pass: pass, 
-        joinDate: new Date().toLocaleDateString('bn-BD') 
-    }, user);
-
-    alert("রেজিস্ট্রেশন সফল!");
-    loginUser(user);
+        alert("রেজিস্ট্রেশন সফল!");
+        loginUser(user);
+    } catch (error) {
+        console.error("Firebase Registration Error:", error);
+        alert("রেজিস্ট্রেশন ব্যর্থ। Firebase কানেকশন বা Rules চেক করুন।");
+    }
 }
 
 async function handleLogin() {
@@ -93,21 +108,30 @@ async function handleLogin() {
 
     if(!user || !pass) return alert("ঘরগুলো পূরণ করুন");
 
-    const snap = await rdb.ref('users/' + user).once('value');
-    if(snap.exists()){
-        const userData = snap.val();
-        if(userData.pass === pass) {
-            loginUser(user);
+    try {
+        const snap = await rdb.ref('users/' + user).once('value');
+        if(snap.exists()){
+            const userData = snap.val();
+            if(userData.pass === pass) {
+                loginUser(user);
+            } else {
+                alert("ভুল পাসওয়ার্ড!");
+            }
         } else {
-            alert("ভুল পাসওয়ার্ড!");
+            alert("ইউজার পাওয়া যায়নি! বড়/ছোট অক্ষর ঠিক করে লিখুন।");
         }
-    } else {
-        alert("ইউজার পাওয়া যায়নি! বড়/ছোট অক্ষর ঠিক করে লিখুন।");
+    } catch (error) {
+        console.error("Firebase Login Error:", error);
+        alert("লগইন ব্যর্থ। আপনার Firebase Rules ঠিক আছে কিনা নিশ্চিত করুন।");
     }
 }
 
 function loginUser(user) { 
     localStorage.setItem('activeUserPRO', user); 
+    // যদি জাভা ইন্টিগ্রেশন থাকে, তবে প্রথম সিঙ্কটি ট্রিগার করা
+    if (typeof AndroidInterface !== 'undefined' && AndroidInterface.syncDataFromLocal) {
+        AndroidInterface.syncDataFromLocal();
+    }
     window.location.reload(); 
 }
 
@@ -121,6 +145,12 @@ function startApp() {
     document.getElementById('auth-screen').classList.add('hidden');
     document.getElementById('main-app').classList.remove('hidden');
     document.getElementById('u-char').innerText = currentUser[0].toUpperCase();
+    
+    // জাভা থেকে ডেটা আনার জন্য ট্রিগার
+    if (typeof AndroidInterface !== 'undefined' && AndroidInterface.fetchDataToLocal) {
+         AndroidInterface.fetchDataToLocal('daily_records/' + currentUser);
+    }
+    
     loadDailyData(currentFilter);
     loadManagerHomeSummary(); // হোম পেজে ম্যানেজারি সামারি লোড করা
 }
@@ -143,8 +173,18 @@ async function saveDaily() {
 // ... loadDailyData, applyFilter ফাংশন (আগের মতোই থাকবে) ...
 async function loadDailyData(filter) {
     currentFilter = filter;
-    const snap = await rdb.ref('daily_records/' + currentUser).once('value');
-    const records = snap.val() ? Object.values(snap.val()) : [];
+    
+    // প্রথমে Firebase থেকে ডেটা লোড করার চেষ্টা
+    let records = [];
+    try {
+        const snap = await rdb.ref('daily_records/' + currentUser).once('value');
+        records = snap.val() ? Object.values(snap.val()) : [];
+    } catch (e) {
+        // ফেইল করলে অফলাইন ডেটা লোড করার লজিক (যা আপনার জাভা কোডে তৈরি করতে হবে)
+        console.warn("Firebase failed, attempting to load from local storage.");
+        // AndroidInterface.loadDataFromLocal('daily_records/' + currentUser); 
+        // এই ফাংশনটি জাভা তৈরি করলে জাভা ডেটা লোড করে দেবে।
+    }
     
     const now = new Date();
     const today = now.toISOString().split('T')[0];
@@ -172,9 +212,17 @@ async function loadDailyData(filter) {
 }
 
 async function undoDaily() {
+    // UNDO: Firebase থেকে শেষ এন্ট্রি খুঁজে রিমুভ করা
     const snap = await rdb.ref('daily_records/' + currentUser).limitToLast(1).once('value');
     if(snap.exists() && confirm("শেষ এন্ট্রি মুছবেন?")) {
-        await rdb.ref('daily_records/' + currentUser + '/' + Object.keys(snap.val())[0]).remove();
+        const lastEntryKey = Object.keys(snap.val())[0];
+        await rdb.ref('daily_records/' + currentUser + '/' + lastEntryKey).remove();
+        
+        // অফলাইন লজিক: জাভা-কে জানাতে হবে
+        if (typeof AndroidInterface !== 'undefined' && AndroidInterface.removeDataLocally) {
+            AndroidInterface.removeDataLocally('daily_records/' + currentUser, lastEntryKey);
+        }
+        
         loadDailyData(currentFilter);
     }
 }
@@ -272,7 +320,8 @@ async function loadMembers() {
 function closeSub() { 
     document.getElementById('sub-screen').classList.add('hidden'); 
     document.getElementById('sub-input-area').classList.remove('hidden');
-    document.getElementById('btn-lock-sub-entry').classList.add('hidden');
+    document.getElementById('btn-show-history').classList.add('hidden'); // হিস্ট্রি বাটন হাইড করা
+    document.getElementById('btn-lock-sub-entry').classList.add('hidden'); // লক বাটন হাইড করা
 }
 
 // M1 ও M3 এর জন্য বাল্ক ইনপুট সিস্টেম
@@ -361,8 +410,16 @@ async function undoSubEntry(type) {
     const ref = rdb.ref(`manager/${currentUser}/${type}`);
     if (prevState && Object.keys(prevState).length > 0) {
         await ref.set(prevState);
+        // অফলাইন লজিক: জাভা-কে জানাতে হবে পুরো নোডটি ওভাররাইড করা হয়েছে
+        if (typeof AndroidInterface !== 'undefined' && AndroidInterface.overwriteNodeLocally) {
+             AndroidInterface.overwriteNodeLocally(JSON.stringify(prevState), `manager/${currentUser}/${type}`);
+        }
     } else {
         await ref.remove(); // যদি prevState খালি হয়
+        // অফলাইন লজিক: জাভা-কে জানাতে হবে পুরো নোডটি মুছে ফেলা হয়েছে
+        if (typeof AndroidInterface !== 'undefined' && AndroidInterface.removeNodeLocally) {
+             AndroidInterface.removeNodeLocally(`manager/${currentUser}/${type}`);
+        }
     }
     
     loadSubList(type);
@@ -756,6 +813,10 @@ function applyFilter(f) { loadDailyData(f); toggleSidebar(false); }
 async function resetManager() { 
     if(confirm("পুরো ম্যানেজারি হিসাব রিসেট হবে! নিশ্চিত?")) { 
         await rdb.ref('manager/'+currentUser).remove(); 
+        // অফলাইন লজিক: জাভা-কে জানাতে হবে পুরো নোডটি মুছে ফেলা হয়েছে
+        if (typeof AndroidInterface !== 'undefined' && AndroidInterface.removeNodeLocally) {
+             AndroidInterface.removeNodeLocally('manager/' + currentUser);
+        }
         loadManagerHome(); 
         loadManagerHomeSummary();
         alert("ম্যানেজারি হিসাব সফলভাবে রিসেট করা হয়েছে।");
@@ -767,6 +828,12 @@ async function deleteSub(t, id) {
         saveCurrentSubState(t);
         
         await rdb.ref(`manager/${currentUser}/${t}/${id}`).remove(); 
+        
+        // অফলাইন লজিক: জাভা-কে জানাতে হবে
+        if (typeof AndroidInterface !== 'undefined' && AndroidInterface.removeDataLocally) {
+            AndroidInterface.removeDataLocally(`manager/${currentUser}/${t}`, id);
+        }
+        
         loadSubList(t); 
         loadManagerHome(); 
         loadManagerHomeSummary();
@@ -824,4 +891,4 @@ async function startDownload() {
     } catch (e) {
         window.location.href = apkUrl;
     }
-              }
+                         }
