@@ -5,9 +5,7 @@
 
 // --- ১. ফায়ারবেস কনফিগারেশন এবং ইনিশিয়ালাইজেশন ---
 const firebaseConfig = {
-    apiKey: "AIzaSyAyNkZvxqdPsa2E2SXnYVsZe1wENJF1I7E",
-    authDomain: "amar-hishab-pro.firebaseapp.com",
-    projectId: "amar-hishab-pro",
+    
     databaseURL: "https://amar-hishab-pro-default-rtdb.asia-southeast1.firebasedatabase.app/" 
 };
     
