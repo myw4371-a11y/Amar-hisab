@@ -98,18 +98,20 @@
                 <h2 class="text-5xl font-black mt-2">৳<span id="total-summary-amt">0</span></h2>
                 <p class="text-xs font-medium opacity-90 mt-2">দৈনিক ব্যক্তিগত খরচ</p>
             </div>
+            
+            <button onclick="joinTelegram()" class="w-full bg-white p-5 rounded-[2.5rem] shadow-sm border border-slate-100 flex items-center justify-center btn-click group">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-blue-500 text-white rounded-xl flex items-center justify-center text-xl shadow-inner group-hover:bg-blue-600 transition-all"><i class="fa-brands fa-telegram"></i></div>
+                    <p class="font-black text-slate-800 text-sm">Join Our Zord Academy Community</p>
+                </div>
+            </button>
+
 
             <div class="grid grid-cols-2 gap-4">
-                <button onclick="openManager()" class="bg-white p-5 rounded-[2.5rem] shadow-sm border border-slate-100 flex flex-col items-start btn-click group">
+                <button onclick="openManager()" class="bg-white p-5 rounded-[2.5rem] shadow-sm border border-slate-100 flex flex-col items-start btn-click group col-span-2">
                     <div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center text-xl shadow-inner group-hover:bg-indigo-600 group-hover:text-white transition-all mb-2"><i class="fa-solid fa-users-gear"></i></div>
                     <p class="font-black text-slate-800 text-sm text-left">ম্যানেজারি হিসাব</p>
                     <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest text-left">মেস/যৌথ ম্যানেজমেন্ট</p>
-                </button>
-                
-                <button onclick="openM2()" class="bg-white p-5 rounded-[2.5rem] shadow-sm border border-slate-100 flex flex-col items-start btn-click group">
-                    <div class="w-10 h-10 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center text-xl shadow-inner group-hover:bg-rose-600 group-hover:text-white transition-all mb-2"><i class="fa-solid fa-basket-shopping"></i></div>
-                    <p class="font-black text-slate-800 text-sm text-left">বাজার শপিং লিস্ট</p>
-                    <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest text-left">যৌথ খরচ (M2) এন্ট্রি</p>
                 </button>
             </div>
 
@@ -133,7 +135,7 @@
                     </div>
             </div>
 
-            <p class="text-center text-[10px] font-black text-slate-300 uppercase tracking-[0.3em] pt-10">V3.1.0 | Develop by Zord Academy</p>
+            <p class="text-center text-[10px] font-black text-slate-300 uppercase tracking-[0.3em] pt-10">V3.3.0 | Developed by Zord Academy</p>
         </main>
     </div>
 
@@ -199,7 +201,11 @@
                 <i class="fa-solid fa-egg text-2xl"></i> ডিমের হিসাব (স্টক ও খরচ)
             </button>
             
-            <p class="text-center text-[10px] font-black text-slate-300 uppercase tracking-[0.3em] pt-4">Managerial Sub-System V3.1</p>
+            <button onclick="openM2()" class="w-full bg-rose-500 text-white p-6 rounded-[2.5rem] font-black flex items-center justify-center gap-3 btn-click shadow-lg">
+                <i class="fa-solid fa-basket-shopping text-2xl"></i> বাজার শপিং লিস্ট
+            </button>
+            
+            <p class="text-center text-[10px] font-black text-slate-300 uppercase tracking-[0.3em] pt-4">Managerial Sub-System V3.3</p>
         </div>
     </div>
 
@@ -210,7 +216,7 @@
                 <h2 id="sub-title" class="font-black text-slate-800 uppercase">সার্ভিস</h2>
             </div>
             <div class="flex items-center gap-2">
-                <button id="btn-show-history" class="w-auto px-4 h-10 bg-white rounded-xl shadow-sm text-slate-600 font-bold text-xs hidden btn-click">ইতিহাস দেখান</button>
+                <button id="btn-add-for-all" onclick="openAddForAllDialog()" class="w-auto px-4 h-10 main-gradient text-white rounded-xl shadow-lg btn-click hidden"><i class="fa-solid fa-users-viewfinder mr-2"></i> সবার জন্য</button>
             </div>
         </nav>
         <div class="p-6 max-w-lg mx-auto">
@@ -281,6 +287,17 @@
             </div>
         </div>
     </div>
+    
+    <div id="add-for-all-dialog" class="fixed inset-0 z-[1100] custom-popup hidden">
+        <div class="popup-content bg-white p-8 rounded-3xl shadow-2xl w-full max-w-sm">
+            <h3 id="add-for-all-title" class="text-xl font-black text-slate-800 mb-4 flex items-center gap-2"><i class="fa-solid fa-users-viewfinder text-indigo-600"></i> সবার জন্য যোগ</h3>
+            <input type="number" id="add-for-all-amt" placeholder="টাকা/মিল পরিমাণ" class="w-full p-4 bg-slate-50 rounded-2xl outline-none border focus:border-indigo-400 font-bold mb-4 text-3xl font-black">
+            <div class="flex gap-3">
+                <button onclick="closeAddForAllDialog()" class="flex-1 bg-slate-100 py-4 rounded-2xl font-bold btn-click">বাতিল</button>
+                <button onclick="saveForAll()" class="flex-1 main-gradient text-white py-4 rounded-2xl font-black shadow-lg btn-click">যোগ করুন</button>
+            </div>
+        </div>
+    </div>
 
     <div id="sidebar-overlay" onclick="toggleSidebar(false)" class="fixed inset-0 bg-black/40 z-[999] hidden backdrop-blur-sm"></div>
     <div id="sidebar" class="sidebar">
@@ -293,10 +310,10 @@
                 <button onclick="applyFilter('last_month')" class="w-full text-left p-4 rounded-2xl font-bold bg-slate-50 hover:bg-indigo-50 text-slate-700 btn-click"><i class="fa-solid fa-clock-rotate-left mr-3 text-indigo-500"></i> গত মাসের হিসাব (নতুন)</button>
                 <button onclick="applyFilter('year')" class="w-full text-left p-4 rounded-2xl font-bold bg-slate-50 hover:bg-indigo-50 text-slate-700 btn-click"><i class="fa-solid fa-calendar-days mr-3 text-indigo-500"></i> এই বছরের হিসাব</button>
             </div>
-            <p class="text-[9px] font-black text-slate-300 text-center uppercase">App Core: V3.2 Pro | UI/UX Build: 1000+</p>
+            <p class="text-[9px] font-black text-slate-300 text-center uppercase">App Core: V3.3 Pro | UI/UX Build: 1000+</p>
         </div>
     </div>
 
     <script src="script.js"></script>
 </body>
-            </html>
+    </html>
