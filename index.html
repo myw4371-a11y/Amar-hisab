@@ -28,6 +28,9 @@
             0% { transform: scale(0.9); opacity: 0; }
             100% { transform: scale(1); opacity: 1; }
         }
+        /* ক্লিক করার জন্য কাস্টম ক্লাস */
+        .list-item-click { cursor: pointer; transition: background-color 0.2s; }
+        .list-item-click:hover { background-color: #f1f5f9; }
     </style>
 </head>
 <body>
@@ -42,14 +45,7 @@
     </div>
 
     <div id="telegram-lock" class="fixed inset-0 z-[9000] bg-white hidden flex items-center justify-center p-6 text-center">
-        <div class="w-full max-w-sm">
-            <i class="fa-brands fa-telegram text-8xl text-indigo-500 mb-6 animate__animated animate__tada animate__infinite"></i>
-            <h2 class="text-2xl font-black text-slate-800 mb-3">যোগদান নিশ্চিত করুন</h2>
-            <p class="text-sm text-slate-600 mb-6">অ্যাপটি ব্যবহারের জন্য আমাদের অফিসিয়াল টেলিগ্রাম চ্যানেলে যুক্ত থাকা প্রয়োজন।</p>
-            <a href="https://t.me/your_channel_link" target="_blank" class="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black shadow-xl inline-block mb-3">চ্যানেলে যোগ দিন</a>
-            <button onclick="verifyTelegramJoin()" class="w-full bg-emerald-500 text-white py-4 rounded-2xl font-black shadow-xl">যোগদান নিশ্চিত</button>
         </div>
-    </div>
     
     <div id="auth-screen" class="min-h-screen flex flex-col items-center justify-center p-6 bg-slate-50">
     
@@ -60,8 +56,8 @@
                 </div>
                 <p class="text-xs font-black text-slate-800">অফিসিয়াল অ্যাপ</p>
             </div>
-            <button onclick="startDownload()" class="bg-indigo-600 text-white px-5 py-2.5 rounded-xl text-[10px] font-black shadow-lg">
-        ডাউনলোড করুন
+            <button onclick="startDownload()" class="bg-indigo-600 text-white px-5 py-2.5 rounded-xl text-[10px] font-black shadow-lg btn-click">
+                ডাউনলোড করুন
             </button>
         </div>
         
@@ -110,10 +106,10 @@
                     <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest text-left">মেস/যৌথ ম্যানেজমেন্ট</p>
                 </button>
                 
-                <button onclick="openBazarList()" class="bg-white p-5 rounded-[2.5rem] shadow-sm border border-slate-100 flex flex-col items-start btn-click group">
-                    <div class="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center text-xl shadow-inner group-hover:bg-emerald-600 group-hover:text-white transition-all mb-2"><i class="fa-solid fa-basket-shopping"></i></div>
-                    <p class="font-black text-slate-800 text-sm text-left">বাজার লিস্ট (M2)</p>
-                    <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest text-left">যৌথ বাজারের তালিকা</p>
+                <button onclick="openM2()" class="bg-white p-5 rounded-[2.5rem] shadow-sm border border-slate-100 flex flex-col items-start btn-click group">
+                    <div class="w-10 h-10 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center text-xl shadow-inner group-hover:bg-rose-600 group-hover:text-white transition-all mb-2"><i class="fa-solid fa-basket-shopping"></i></div>
+                    <p class="font-black text-slate-800 text-sm text-left">বাজার শপিং লিস্ট</p>
+                    <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest text-left">যৌথ খরচ (M2) এন্ট্রি</p>
                 </button>
             </div>
 
@@ -143,7 +139,7 @@
 
     <div id="profile-screen" class="fixed inset-0 z-[500] bg-slate-50 hidden overflow-y-auto">
         <nav class="sticky top-0 glass-card p-5 flex items-center gap-4 z-50">
-            <button onclick="closeProfile()" class="w-10 h-10 bg-white rounded-xl shadow-sm text-slate-600"><i class="fa-solid fa-arrow-left"></i></button>
+            <button onclick="closeProfile()" class="w-10 h-10 bg-white rounded-xl shadow-sm text-slate-600 btn-click"><i class="fa-solid fa-arrow-left"></i></button>
             <h2 class="font-black text-slate-800">ইউজার প্রোফাইল</h2>
         </nav>
         <div class="p-6 max-w-lg mx-auto text-center space-y-6">
@@ -180,22 +176,22 @@
                 <div onclick="openM1()" class="bg-white p-6 rounded-[2.5rem] shadow-sm border border-indigo-100 btn-click group">
                     <p class="text-[9px] font-black text-indigo-400 uppercase">মোট জমা (M1)</p>
                     <h3 class="text-2xl font-black">৳<span id="m-total-taka">0</span></h3>
-                    <p id="manager-m1-text" class="text-[8px] font-black text-slate-400 mt-1"></p>
+                    <p id="manager-m1-text" class="text-[8px] font-black text-slate-400 mt-1">জমা তালিকা</p>
                 </div>
                 <div onclick="openM2()" class="bg-white p-6 rounded-[2.5rem] shadow-sm border border-rose-100 btn-click group">
                     <p class="text-[9px] font-black text-rose-400 uppercase">মোট খরচ (M2)</p>
                     <h3 class="text-2xl font-black text-rose-500">৳<span id="m-total-exp">0</span></h3>
-                    <p id="manager-m2-text" class="text-[8px] font-black text-slate-400 mt-1"></p>
+                    <p id="manager-m2-text" class="text-[8px] font-black text-slate-400 mt-1">বাজার/ব্যয় তালিকা</p>
                 </div>
                 <div onclick="openM3()" class="bg-white p-6 rounded-[2.5rem] shadow-sm border border-emerald-100 btn-click group">
                     <p class="text-[9px] font-black text-emerald-400 uppercase">মোট মিল (M3)</p>
                     <h3 class="text-2xl font-black text-emerald-500"><span id="m-total-meal">0</span> টি</h3>
-                    <p id="manager-m3-text" class="text-[8px] font-black text-slate-400 mt-1"></p>
+                    <p id="manager-m3-text" class="text-[8px] font-black text-slate-400 mt-1">মিল এন্ট্রি তালিকা</p>
                 </div>
                 <div onclick="openM4()" class="bg-slate-900 p-6 rounded-[2.5rem] shadow-sm text-white btn-click group">
                     <p class="text-[9px] font-black text-indigo-300 uppercase">মিল রেট (M4)</p>
                     <h3 class="text-2xl font-black">৳<span id="m-rate">0.00</span></h3>
-                    <p id="manager-m4-text" class="text-[8px] font-black text-slate-400 mt-1"></p>
+                    <p id="manager-m4-text" class="text-[8px] font-black text-indigo-300 mt-1">প্রতি মিল খরচ</p>
                 </div>
             </div>
             
@@ -215,7 +211,6 @@
             </div>
             <div class="flex items-center gap-2">
                 <button id="btn-show-history" class="w-auto px-4 h-10 bg-white rounded-xl shadow-sm text-slate-600 font-bold text-xs hidden btn-click">ইতিহাস দেখান</button>
-                <button id="btn-lock-sub-entry" onclick="lockSubEntry()" class="w-10 h-10 bg-slate-800 text-white rounded-xl shadow-sm hidden btn-click"><i class="fa-solid fa-lock"></i></button>
             </div>
         </nav>
         <div class="p-6 max-w-lg mx-auto">
@@ -231,6 +226,13 @@
                     <button id="sub-undo-btn" class="flex-1 bg-slate-100 py-4 rounded-2xl font-black text-xs btn-click">UNDO</button>
                 </div>
             </div>
+            
+            <div id="bazar-save-as-area" class="bg-white p-6 rounded-3xl shadow-xl mb-6 hidden">
+                <p class="text-sm font-black text-slate-500 mb-2">মোট বাজার খরচ (Save As)</p>
+                <h3 class="text-4xl font-black text-slate-800 mb-4">৳<span id="bazar-grand-total">0</span></h3>
+                <button onclick="saveBazarAsExpense()" id="btn-save-as-expense" class="w-full bg-rose-500 text-white py-4 rounded-2xl font-black shadow-lg btn-click"><i class="fa-solid fa-floppy-disk mr-2"></i> Save As (খরচ করুন)</button>
+            </div>
+            
             <div id="sub-list" class="space-y-3 pb-10 animate__animated animate__fadeInUp">
                 </div>
         </div>
@@ -291,10 +293,10 @@
                 <button onclick="applyFilter('last_month')" class="w-full text-left p-4 rounded-2xl font-bold bg-slate-50 hover:bg-indigo-50 text-slate-700 btn-click"><i class="fa-solid fa-clock-rotate-left mr-3 text-indigo-500"></i> গত মাসের হিসাব (নতুন)</button>
                 <button onclick="applyFilter('year')" class="w-full text-left p-4 rounded-2xl font-bold bg-slate-50 hover:bg-indigo-50 text-slate-700 btn-click"><i class="fa-solid fa-calendar-days mr-3 text-indigo-500"></i> এই বছরের হিসাব</button>
             </div>
-            <p class="text-[9px] font-black text-slate-300 text-center uppercase">App Core: V3.1 Pro | UI/UX Build: 990+</p>
+            <p class="text-[9px] font-black text-slate-300 text-center uppercase">App Core: V3.2 Pro | UI/UX Build: 1000+</p>
         </div>
     </div>
 
     <script src="script.js"></script>
 </body>
-                </html>
+            </html>
