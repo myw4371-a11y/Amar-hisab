@@ -20,6 +20,8 @@
         .loader-ring { width: 50px; height: 50px; border: 5px solid #ffffff33; border-top: 5px solid white; border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { 100% { transform: rotate(360deg); } }
         .btn-click:active { transform: scale(0.95); }
+        /* নতুন CSS ক্লাস: লকড ইনপুট */
+        .input-locked { background-color: #e2e8f0; pointer-events: none; opacity: 0.6; }
     </style>
 </head>
 <body>
@@ -34,46 +36,38 @@
     </div>
 
     <div id="telegram-lock" class="fixed inset-0 z-[9000] bg-white hidden flex items-center justify-center p-6 text-center">
-        <div class="max-w-xs space-y-6">
-            <div class="w-24 h-24 bg-blue-100 text-blue-600 rounded-[2.5rem] flex items-center justify-center text-5xl mx-auto shadow-inner">
-                <i class="fa-brands fa-telegram"></i>
-            </div>
-            <h2 class="text-2xl font-black text-slate-800">কমিউনিটিতে জয়েন করুন</h2>
-            <p class="text-slate-500 font-bold">অ্যাপটি ব্যবহার করতে আমাদের টেলিগ্রাম চ্যানেলে জয়েন থাকা বাধ্যতামূলক।</p>
-            <a href="https://t.me/hackingacademyX" target="_blank" onclick="verifyTelegramJoin()" class="block w-full main-gradient text-white py-4 rounded-2xl font-black shadow-lg">JOIN NOW</a>
         </div>
-    </div>
     <div id="auth-screen" class="min-h-screen flex flex-col items-center justify-center p-6 bg-slate-50">
     
-    <div class="w-full max-w-sm mb-6 bg-white p-5 rounded-[2.5rem] shadow-sm border-2 border-indigo-100 flex items-center justify-between">
-        <div class="flex items-center gap-3">
-            <div class="w-10 h-10 bg-indigo-600 text-white rounded-xl flex items-center justify-center shadow-lg">
-                <i class="fa-brands fa-android text-xl"></i>
+        <div class="w-full max-w-sm mb-6 bg-white p-5 rounded-[2.5rem] shadow-sm border-2 border-indigo-100 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-xl flex items-center justify-center shadow-lg">
+                    <i class="fa-brands fa-android text-xl"></i>
+                </div>
+                <p class="text-xs font-black text-slate-800">অফিসিয়াল অ্যাপ</p>
             </div>
-            <p class="text-xs font-black text-slate-800">অফিসিয়াল অ্যাপ</p>
+            <button onclick="startDownload()" class="bg-indigo-600 text-white px-5 py-2.5 rounded-xl text-[10px] font-black shadow-lg">
+        ডাউনলোড করুন
+            </button>
         </div>
-        <button onclick="startDownload()" class="bg-indigo-600 text-white px-5 py-2.5 rounded-xl text-[10px] font-black shadow-lg">
-    ডাউনলোড করুন
-        </button>
-    </div>
-    
-    <div class="w-full max-w-sm bg-white p-8 rounded-[3rem] shadow-2xl">
-        <h2 id="auth-title" class="text-2xl font-black text-center mb-6 text-slate-800">লগইন</h2>
         
-        <div id="login-fields" class="space-y-4">
-            <input type="text" id="login-user" placeholder="ইউজার নেম (বড়/ছোট হাত)" class="w-full p-4 bg-slate-50 rounded-2xl outline-none border focus:border-indigo-400 font-bold">
-            <input type="password" id="login-pass" placeholder="পাসওয়ার্ড" class="w-full p-4 bg-slate-50 rounded-2xl outline-none border focus:border-indigo-400 font-bold">
-            <button type="button" onclick="handleLogin()" class="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black shadow-xl">লগইন করুন</button>
-            <p class="text-center text-sm font-bold text-slate-400 mt-4">নতুন ইউজার? <span onclick="toggleAuth(true)" class="text-indigo-600 underline cursor-pointer">রেজিস্ট্রেশন</span></p>
-        </div>
+        <div class="w-full max-w-sm bg-white p-8 rounded-[3rem] shadow-2xl">
+            <h2 id="auth-title" class="text-2xl font-black text-center mb-6 text-slate-800">লগইন</h2>
+            
+            <div id="login-fields" class="space-y-4">
+                <input type="text" id="login-user" placeholder="ইউজার নেম (বড়/ছোট হাত)" class="w-full p-4 bg-slate-50 rounded-2xl outline-none border focus:border-indigo-400 font-bold">
+                <input type="password" id="login-pass" placeholder="পাসওয়ার্ড" class="w-full p-4 bg-slate-50 rounded-2xl outline-none border focus:border-indigo-400 font-bold">
+                <button type="button" onclick="handleLogin()" class="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black shadow-xl">লগইন করুন</button>
+                <p class="text-center text-sm font-bold text-slate-400 mt-4">নতুন ইউজার? <span onclick="toggleAuth(true)" class="text-indigo-600 underline cursor-pointer">রেজিস্ট্রেশন</span></p>
+            </div>
 
-        <div id="reg-fields" class="space-y-4 hidden">
-            <input type="text" id="reg-user" placeholder="ইউজার নেম" class="w-full p-4 bg-slate-50 rounded-2xl outline-none border focus:border-indigo-400 font-bold">
-            <input type="password" id="reg-pass" placeholder="পাসওয়ার্ড" class="w-full p-4 bg-slate-50 rounded-2xl outline-none border focus:border-indigo-400 font-bold">
-            <button type="button" onclick="handleRegister()" class="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black shadow-xl">একাউন্ট খুলুন</button>
-            <p class="text-center text-sm font-bold text-slate-400 mt-4">একাউন্ট আছে? <span onclick="toggleAuth(false)" class="text-indigo-600 underline cursor-pointer">লগইন</span></p>
+            <div id="reg-fields" class="space-y-4 hidden">
+                <input type="text" id="reg-user" placeholder="ইউজার নেম" class="w-full p-4 bg-slate-50 rounded-2xl outline-none border focus:border-indigo-400 font-bold">
+                <input type="password" id="reg-pass" placeholder="পাসওয়ার্ড" class="w-full p-4 bg-slate-50 rounded-2xl outline-none border focus:border-indigo-400 font-bold">
+                <button type="button" onclick="handleRegister()" class="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black shadow-xl">একাউন্ট খুলুন</button>
+                <p class="text-center text-sm font-bold text-slate-400 mt-4">একাউন্ট আছে? <span onclick="toggleAuth(false)" class="text-indigo-600 underline cursor-pointer">লগইন</span></p>
+            </div>
         </div>
-    </div>
     </div>
 
     
@@ -81,6 +75,7 @@
         <nav class="sticky top-0 z-50 glass-card px-6 py-4 flex justify-between items-center border-b">
             <div onclick="showProfile()" class="w-10 h-10 main-gradient rounded-xl flex items-center justify-center text-white shadow-lg cursor-pointer font-black"><span id="u-char">Z</span></div>
             <h1 class="text-xl font-black tracking-tighter">হিসাব <span class="text-indigo-600">PRO</span></h1>
+            <button onclick="showInfo()" class="text-slate-600 text-2xl mr-3"><i class="fa-solid fa-circle-info"></i></button>
             <button onclick="toggleSidebar(true)" class="text-slate-600 text-2xl"><i class="fa-solid fa-bars-staggered"></i></button>
         </nav>
 
@@ -90,7 +85,12 @@
                 <h2 class="text-5xl font-black mt-2">৳<span id="total-summary-amt">0</span></h2>
             </div>
 
-            <button onclick="openManager()" class="w-full bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100 flex items-center justify-between btn-click group">
+            <button onclick="openManager()" class="w-full bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100 flex items-center justify-between btn-click group relative overflow-hidden">
+                <div class="absolute top-0 right-0 p-3 text-right">
+                    <p class="text-[10px] font-black text-green-500">৳<span id="home-m-total-taka">0</span></p>
+                    <p class="text-[10px] font-black text-rose-500">৳<span id="home-m-total-exp">0</span></p>
+                    <p class="text-[10px] font-black text-indigo-500"><span id="home-m-total-meal">0</span> মিল</p>
+                </div>
                 <div class="flex items-center gap-4">
                     <div class="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center text-xl shadow-inner group-hover:bg-indigo-600 group-hover:text-white transition-all"><i class="fa-solid fa-users-gear"></i></div>
                     <div class="text-left">
@@ -100,7 +100,16 @@
                 </div>
                 <i class="fa-solid fa-chevron-right text-slate-300"></i>
             </button>
-
+            <button onclick="openBazarList()" class="w-full bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100 flex items-center justify-between btn-click group">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center text-xl shadow-inner group-hover:bg-emerald-600 group-hover:text-white transition-all"><i class="fa-solid fa-basket-shopping"></i></div>
+                    <div class="text-left">
+                        <p class="font-black text-slate-800">বাজার ও শপিং লিস্ট</p>
+                        <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">দৈনিক বাজারের তালিকা</p>
+                    </div>
+                </div>
+                <i class="fa-solid fa-chevron-right text-slate-300"></i>
+            </button>
             <div class="bg-white p-8 rounded-[3rem] shadow-xl border-white border-4 space-y-4">
                 <div class="flex items-center gap-2 mb-2">
                     <div class="w-2 h-2 bg-indigo-500 rounded-full animate-ping"></div>
@@ -124,31 +133,16 @@
     </div>
 
     <div id="profile-screen" class="fixed inset-0 z-[500] bg-slate-50 hidden overflow-y-auto">
-        <nav class="p-5 glass-card flex items-center gap-4">
-            <button onclick="closeProfile()" class="w-10 h-10 bg-white rounded-xl shadow-sm text-slate-600"><i class="fa-solid fa-arrow-left"></i></button>
-            <h2 class="font-black text-slate-800">ইউজার প্রোফাইল</h2>
-        </nav>
-        <div class="p-8 flex flex-col items-center">
-            <div class="w-24 h-24 main-gradient rounded-[2.5rem] flex items-center justify-center text-4xl text-white font-black shadow-2xl mb-4" id="p-avatar">Z</div>
-            <h3 class="text-2xl font-black text-slate-800" id="p-name">Username</h3>
-            <p class="bg-indigo-50 text-indigo-600 px-4 py-1 rounded-full text-[10px] font-black mt-2 uppercase">Premium User</p>
-            <div class="w-full mt-10 bg-white p-6 rounded-3xl shadow-sm space-y-4">
-                <div class="flex justify-between items-center border-b pb-3">
-                    <span class="font-bold text-slate-400">Join Date:</span>
-                    <span id="p-join" class="font-black text-slate-800">...</span>
-                </div>
-                <button onclick="handleLogout()" class="আপনার-স্টাইল-ক্লাস">
-    <i class="fa-solid fa-right-from-bracket"></i> লগআউট
-                </button>
-            </div>
         </div>
-    </div>
 
     <div id="manager-screen" class="fixed inset-0 z-[600] bg-slate-50 hidden overflow-y-auto">
         <nav class="sticky top-0 glass-card p-5 flex justify-between items-center z-50">
             <button onclick="closeManager()" class="w-10 h-10 bg-white rounded-xl shadow-sm"><i class="fa-solid fa-arrow-left"></i></button>
             <h2 class="font-black">ম্যানেজারি ড্যাশবোর্ড</h2>
-            <button onclick="resetManager()" class="w-10 h-10 bg-rose-50 text-rose-500 rounded-xl"><i class="fa-solid fa-trash-can"></i></button>
+            <div class="flex items-center gap-2">
+                <button onclick="openAddMemberDialog()" id="btn-add-member" class="w-10 h-10 main-gradient text-white rounded-xl shadow-lg"><i class="fa-solid fa-user-plus"></i></button>
+                <button onclick="resetManager()" class="w-10 h-10 bg-rose-50 text-white rounded-xl shadow-lg"><i class="fa-solid fa-trash-can"></i></button>
+            </div>
         </nav>
 
         <div class="p-6 max-w-lg mx-auto space-y-4">
@@ -178,9 +172,12 @@
     </div>
 
     <div id="sub-screen" class="fixed inset-0 z-[700] bg-slate-50 hidden overflow-y-auto">
-        <nav class="p-5 glass-card flex items-center gap-4">
-            <button onclick="closeSub()" class="w-10 h-10 bg-white rounded-xl shadow-sm text-slate-600"><i class="fa-solid fa-arrow-left"></i></button>
-            <h2 id="sub-title" class="font-black text-slate-800 uppercase">সার্ভিস</h2>
+        <nav class="sticky top-0 glass-card p-5 flex justify-between items-center z-50">
+            <div class="flex items-center gap-4">
+                <button onclick="closeSub()" class="w-10 h-10 bg-white rounded-xl shadow-sm text-slate-600"><i class="fa-solid fa-arrow-left"></i></button>
+                <h2 id="sub-title" class="font-black text-slate-800 uppercase">সার্ভিস</h2>
+            </div>
+            <button id="btn-show-history" onclick="showMealHistoryTable()" class="w-10 h-10 bg-white rounded-xl shadow-sm text-slate-600 hidden"><i class="fa-solid fa-table-list"></i></button>
         </nav>
         <div class="p-6 max-w-lg mx-auto">
             <div id="sub-input-area" class="bg-white p-8 rounded-[3rem] shadow-xl space-y-4 mb-8">
@@ -188,15 +185,98 @@
                     <p class="text-[10px] font-black text-slate-400 uppercase">এন্ট্রি যোগ করুন</p>
                     <p id="sub-total-label" class="text-xs font-black text-indigo-600">Total: 0</p>
                 </div>
-                <div id="dynamic-inputs" class="space-y-4"></div>
+                <div id="dynamic-inputs" class="space-y-4">
+                    </div>
                 <div class="flex gap-3">
                     <button id="sub-add-btn" class="flex-[3] main-gradient text-white py-4 rounded-2xl font-black shadow-lg btn-click">সংরক্ষণ করুন</button>
                     <button id="sub-undo-btn" class="flex-1 bg-slate-100 py-4 rounded-2xl font-black text-xs btn-click">UNDO</button>
                 </div>
             </div>
             <div id="sub-list" class="space-y-3 pb-10"></div>
+            <button id="btn-lock-sub-entry" onclick="lockSubEntry()" class="w-full bg-slate-800 text-white p-4 rounded-2xl font-black btn-click hidden">এন্ট্রি লক করুন</button>
         </div>
     </div>
+    
+    <div id="bazar-screen" class="fixed inset-0 z-[700] bg-slate-50 hidden overflow-y-auto">
+        <nav class="sticky top-0 glass-card p-5 flex items-center gap-4 z-50">
+            <button onclick="closeBazarList()" class="w-10 h-10 bg-white rounded-xl shadow-sm text-slate-600"><i class="fa-solid fa-arrow-left"></i></button>
+            <h2 class="font-black text-slate-800">বাজার শপিং লিস্ট</h2>
+        </nav>
+        
+        <div class="p-6 max-w-lg mx-auto">
+            <div id="shopping-input-area" class="bg-white p-6 rounded-[3rem] shadow-xl space-y-4 mb-8">
+                <div class="flex items-center gap-3">
+                    <button onclick="undoBazar()" class="flex-1 bg-slate-100 py-2 rounded-xl font-black text-xs btn-click">UNDO</button>
+                    <button onclick="saveBazarItem()" class="flex-1 main-gradient text-white py-2 rounded-xl font-black shadow-lg btn-click">Save Item</button>
+                </div>
+                <input type="text" id="bazar-item-name" placeholder="পণ্যের নাম (যেমন: আলু)" class="w-full p-3 bg-slate-50 rounded-xl outline-none font-bold">
+                <div class="flex gap-3">
+                    <input type="number" id="bazar-item-qty" placeholder="পরিমাণ" class="flex-1 w-full p-3 bg-slate-50 rounded-xl outline-none font-bold">
+                    <select id="bazar-item-unit" class="w-20 p-3 bg-slate-50 rounded-xl outline-none font-bold">
+                        <option value="kg">কেজি</option>
+                        <option value="gram">গ্রাম</option>
+                        <option value="pcs">পিস</option>
+                    </select>
+                </div>
+                <div class="flex gap-3">
+                    <input type="number" id="bazar-item-price" placeholder="ইউনিট দাম (৳)" class="flex-1 w-full p-3 bg-slate-50 rounded-xl outline-none font-bold">
+                    <input type="text" id="bazar-item-total" placeholder="মোট দাম" class="w-32 p-3 bg-slate-100 rounded-xl outline-none font-black text-sm text-right input-locked" readonly>
+                </div>
+            </div>
+
+            <div id="shopping-list" class="space-y-3 pb-4">
+                <h3 class="font-black text-slate-800 px-2 flex items-center gap-2"><i class="fa-solid fa-list-check text-emerald-500"></i> শপিং তালিকা</h3>
+                <div id="bazar-list-container" class="space-y-3">
+                    </div>
+            </div>
+            
+            <div class="bg-white p-6 rounded-3xl shadow-xl">
+                <p class="text-sm font-black text-slate-500 mb-2">মোট বাজার খরচ</p>
+                <h3 class="text-4xl font-black text-slate-800 mb-4">৳<span id="bazar-grand-total">0</span></h3>
+                <button onclick="saveAsExpense()" id="btn-save-as-expense" class="w-full bg-rose-500 text-white py-4 rounded-2xl font-black shadow-lg btn-click"><i class="fa-solid fa-floppy-disk mr-2"></i> Save As (খরচ করুন)</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="add-member-dialog" class="fixed inset-0 z-[1100] bg-black/50 hidden flex items-center justify-center p-6 backdrop-blur-sm">
+        <div class="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-sm">
+            <h3 class="text-xl font-black text-slate-800 mb-4">নতুন মেম্বার যোগ</h3>
+            <input type="text" id="new-member-name" placeholder="মেম্বারের নাম" class="w-full p-4 bg-slate-50 rounded-2xl outline-none border focus:border-indigo-400 font-bold mb-4">
+            <div class="flex gap-3">
+                <button onclick="closeAddMemberDialog()" class="flex-1 bg-slate-100 py-4 rounded-2xl font-bold">বাতিল</button>
+                <button onclick="addNewMember()" class="flex-1 main-gradient text-white py-4 rounded-2xl font-black shadow-lg">যোগ করুন</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="info-dialog" class="fixed inset-0 z-[1100] bg-black/50 hidden flex items-center justify-center p-6 backdrop-blur-sm">
+        <div class="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-sm text-center">
+            <i class="fa-solid fa-crown text-5xl mb-4 text-indigo-600"></i>
+            <h3 class="text-2xl font-black text-slate-800 mb-4">হিসাব PRO</h3>
+            
+            <div class="text-left bg-slate-50 p-4 rounded-2xl mb-4">
+                <p class="text-sm font-black text-slate-600 mb-2">ডেভেলপার যোগাযোগ:</p>
+                <p class="font-bold text-indigo-600"><i class="fa-solid fa-phone mr-2"></i> 01X XX XX XXXX</p>
+            </div>
+            
+            <p class="text-sm font-bold text-slate-700 mb-4">
+                এই অ্যাপটি আপনার মেস বা হোস্টেলের **টাকা, খরচ এবং মিলের** হিসাব নির্ভুলভাবে রাখার জন্য তৈরি করা হয়েছে।
+            </p>
+            
+            <p class="text-xs font-black text-slate-500 uppercase mb-2">ব্যবহারের নিয়মাবলি:</p>
+            <ul class="text-left text-sm font-medium text-slate-600 space-y-2">
+                <li><i class="fa-solid fa-circle-check text-green-500 mr-2"></i> ম্যানেজারিতে মেম্বার অ্যাড করুন (+ আইকন)।</li>
+                <li><i class="fa-solid fa-circle-check text-green-500 mr-2"></i> মিল/টাকা এন্ট্রির জন্য "All" অপশন ব্যবহার করুন।</li>
+                <li><i class="fa-solid fa-circle-check text-green-500 mr-2"></i> বাজার লিস্ট সেভ করার পর "Save As" করে খরচে যোগ করুন।</li>
+            </ul>
+            
+            <button onclick="closeInfoDialog()" class="w-full main-gradient text-white py-3 mt-6 rounded-2xl font-black shadow-lg">বন্ধ করুন</button>
+        </div>
+    </div>
+
+    <div id="egg-screen" class="fixed inset-0 z-[700] bg-slate-50 hidden overflow-y-auto">
+        </div>
+
 
     <div id="sidebar-overlay" onclick="toggleSidebar(false)" class="fixed inset-0 bg-black/40 z-[999] hidden backdrop-blur-sm"></div>
     <div id="sidebar" class="sidebar">
@@ -215,4 +295,4 @@
 
     <script src="script.js"></script>
 </body>
-    </html>
+                </html>
