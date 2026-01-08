@@ -1,429 +1,364 @@
-// ====================================================================================
-// হিসেব PRO | JAVASCRIPT CORE V3.3 (Addition, Update, and Save As Logic Implemented)
-// DEVELOPED BY ZORD ACADEMY
-// ====================================================================================
-
-// --- ১. ফায়ারবেস কনফিগারেশন এবং ইনিশিয়ালাইজেশন ---
+// ১. ফায়ারবেস সেটআপ
 const firebaseConfig = {
-    
-    databaseURL: "https://amar-hishab-pro-default-rtdb.asia-southeast1.firebasedatabase.app/" 
-};
-    
-
-let firebaseApp;
-let database;
-try {
-    firebaseApp = firebase.initializeApp(firebaseConfig);
-    database = firebase.database();
-} catch (e) {
-    console.error("Firebase initialization failed:", e);
-}
-
-
-// --- ২. গ্লোবাল ভেরিয়েবল এবং স্টেট ---
-let currentUser = null;
-let activeSub = null; // M1, M2, M3, Egg
-let currentFilter = 'today'; // Filter for daily list
-let managerLocked = false;
-let currentKeyToUpdate = null; // M1, M2, M3, Egg এ এডিটিং এর জন্য ব্যবহৃত হবে
-let currentMemberKey = null; // M1/M3 এর সংযোজন লজিকের জন্য সর্বশেষ ব্যবহৃত মেম্বার key
-
-// --- ৩. ইউটিলিটি ফাংশন (আগের মতোই আছে) ---
-const formatTaka = (amount) => {
-    if (typeof amount !== 'number' || isNaN(amount)) return '0';
-    return amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    apiKey: "AIzaSyAyNkZvxqdPsa2E2SXnYVsZe1wENJF1I7E",
+    authDomain: "amar-hishab-pro.firebaseapp.com",
+    projectId: "amar-hishab-pro",
+    databaseURL: "https://amar-hishab-pro-default-rtdb.asia-southeast1.firebasedatabase.app/"
 };
 
-const showCustomAlert = (message) => {
-    document.getElementById('custom-alert-message').textContent = message;
-    document.getElementById('custom-alert').classList.remove('hidden');
-}
+firebase.initializeApp(firebaseConfig);
+const rdb = firebase.database();
+let currentUser = localStorage.getItem('activeUserPRO');
+let telegramJoined = localStorage.getItem('tgJoin_V3') === 'true';
+let currentFilter = 'today';
 
-const closeCustomAlert = () => {
-    document.getElementById('custom-alert').classList.add('hidden');
-}
-
-const showCustomConfirm = (message, callback) => {
-    document.getElementById('custom-confirm-message').textContent = message;
-    document.getElementById('custom-confirm').classList.remove('hidden');
-    
-    const yesBtn = document.getElementById('custom-confirm-yes');
-    const noBtn = document.getElementById('custom-confirm-no');
-
-    const newYesBtn = yesBtn.cloneNode(true);
-    yesBtn.parentNode.replaceChild(newYesBtn, yesBtn);
-    
-    const newNoBtn = noBtn.cloneNode(true);
-    noBtn.parentNode.replaceChild(newNoBtn, noBtn);
-    
-    newYesBtn.addEventListener('click', () => {
-        document.getElementById('custom-confirm').classList.add('hidden');
-        callback();
-    });
-
-    newNoBtn.addEventListener('click', () => {
-        document.getElementById('custom-confirm').classList.add('hidden');
-    });
-}
-
-// ... (filterDataByTime, handleLogin, handleRegister, handleLogout, saveDaily, undoDaily, renderDailyList, loadDailyEntry, openManager, closeManager, loadManagerSummary - এই সব ফাংশন আগের মতোই থাকবে) ...
-
-// --- ৪. সাব-সিস্টেম কন্ট্রোল (M1, M2, M3, Egg) ---
-
-const openSub = (sub) => {
-    activeSub = sub;
-    // এডিটিং মোড রিসেট
-    currentKeyToUpdate = null; 
-    document.getElementById('sub-add-btn').textContent = 'সংরক্ষণ করুন'; 
-    
-    document.getElementById('sub-screen').classList.remove('hidden');
-    document.getElementById('manager-screen').classList.add('hidden');
-    
-    setupSubInput(sub);
-    loadSubSystem(sub);
-}
-
-const closeSub = () => {
-    activeSub = null;
-    currentKeyToUpdate = null;
-    document.getElementById('sub-add-btn').textContent = 'সংরক্ষণ করুন';
-    document.getElementById('sub-screen').classList.add('hidden');
-    document.getElementById('manager-screen').classList.remove('hidden');
-}
-
-const setupSubInput = (sub) => {
-    const titleMap = {
-        'M1': 'মোট জমা (M1)',
-        'M2': 'বাজার/শপিং লিস্ট',
-        'M3': 'মোট মিল (M3)',
-        'Egg': 'ডিমের হিসাব',
-    };
-    document.getElementById('sub-title').textContent = titleMap[sub];
-    const dynamicInputs = document.getElementById('dynamic-inputs');
-    dynamicInputs.innerHTML = '';
-    
-    // M2 এর জন্য 'Save As' বাটন দেখানো/লুকানো
-    document.getElementById('bazar-save-as-area').classList.toggle('hidden', sub !== 'M2');
-    
-    // M1 এবং M3 এর জন্য 'সবার জন্য যোগ' বাটন
-    document.getElementById('btn-add-for-all').classList.toggle('hidden', sub !== 'M1' && sub !== 'M3');
-    
-    let inputHtml = '';
-    
-    switch (sub) {
-        case 'M1': 
-            inputHtml = `
-                <input type="text" id="sub-desc" placeholder="জমার কারণ" class="w-full p-4 bg-slate-50 rounded-2xl outline-none font-bold">
-                <input type="number" id="sub-amt" placeholder="টাকার পরিমাণ (৳)" class="w-full p-5 bg-slate-100 rounded-2xl outline-none text-3xl font-black">
-                <select id="sub-member" class="w-full p-4 bg-slate-50 rounded-2xl outline-none font-bold">
-                    <option value="">মেম্বার নির্বাচন করুন (সংযোজনের জন্য খালি রাখুন)</option>
-                </select>
-            `;
-            break;
-        case 'M2': // খরচ/বাজার
-            inputHtml = `
-                <input type="text" id="sub-desc" placeholder="পণ্য/খরচের কারণ (যেমন: আলু)" class="w-full p-4 bg-slate-50 rounded-2xl outline-none font-bold">
-                <input type="number" id="sub-amt" placeholder="টাকার পরিমাণ (৳) - ঐচ্ছিক" class="w-full p-5 bg-slate-100 rounded-2xl outline-none text-3xl font-black">
-                <select id="sub-member" class="w-full p-4 bg-slate-50 rounded-2xl outline-none font-bold">
-                    </select>
-            `;
-            break;
-        case 'M3': 
-            inputHtml = `
-                <input type="number" id="sub-amt" placeholder="মিল সংখ্যা (যেমন: ১ বা ০.৫)" class="w-full p-5 bg-slate-100 rounded-2xl outline-none text-3xl font-black">
-                <select id="sub-member" class="w-full p-4 bg-slate-50 rounded-2xl outline-none font-bold">
-                    <option value="">মেম্বার নির্বাচন করুন (সংযোজনের জন্য খালি রাখুন)</option>
-                </select>
-            `;
-            break;
-        case 'Egg': 
-            inputHtml = `
-                <input type="text" id="sub-desc" placeholder="ডিমের কারণ (ক্রয়/খরচ/স্টক)" class="w-full p-4 bg-slate-50 rounded-2xl outline-none font-bold">
-                <input type="number" id="sub-amt" placeholder="ডিমের সংখ্যা (নেগেটিভ মানে খরচ)" class="w-full p-5 bg-slate-100 rounded-2xl outline-none text-3xl font-black">
-            `;
-            break;
-    }
-    
-    dynamicInputs.innerHTML = inputHtml;
-
-    document.getElementById('sub-add-btn').onclick = () => saveSubEntry(sub);
-
-    // M1, M2 এবং M3 এর জন্য মেম্বার লোড করা
-    if (sub === 'M1' || sub === 'M2' || sub === 'M3') {
-        loadMemberOptions('sub-member');
-    }
-}
-
-const loadMemberOptions = (selectId) => {
-    const select = document.getElementById(selectId);
-    // প্রথম অপশনটি সংযোজন লজিকের জন্য খালি রাখা
-    const initialOption = (selectId === 'sub-member' && (activeSub === 'M1' || activeSub === 'M3')) 
-        ? '<option value="">মেম্বার নির্বাচন করুন (সংযোজনের জন্য খালি রাখুন)</option>'
-        : '<option value="">মেম্বার নির্বাচন করুন</option>';
-        
-    select.innerHTML = initialOption;
-    
-    database.ref('manager_data/' + currentUser + '/members').once('value', (snapshot) => {
-        const members = snapshot.val() || {};
-        for (const key in members) {
-            if (members[key].isActive) {
-                const option = document.createElement('option');
-                option.value = key;
-                option.textContent = members[key].name;
-                select.appendChild(option);
-            }
+// --- ২. স্প্ল্যাশ ও টেলিগ্রাম সিকিউরিটি ---
+window.onload = () => {
+    setTimeout(() => {
+        document.getElementById('splash').style.display = 'none';
+        if (!telegramJoined) {
+            document.getElementById('telegram-lock').classList.remove('hidden');
+        } else if (currentUser) {
+            startApp();
+        } else {
+            document.getElementById('auth-screen').classList.remove('hidden');
         }
+    }, 2500);
+}
+
+function verifyTelegramJoin() {
+    localStorage.setItem('tgJoin_V3', 'true');
+    location.reload();
+}
+
+// --- ৩. অথেন্টিকেশন লজিক (বড় হাতের অক্ষর সাপোর্ট সহ) ---
+
+async function handleRegister() {
+    // .toLowerCase() সরিয়ে দেওয়া হয়েছে, তাই বড় হাতের অক্ষরেই জমা হবে
+    const user = document.getElementById('reg-user').value.trim();
+    const pass = document.getElementById('reg-pass').value;
+
+    if(!user || pass.length < 4) return alert("সঠিক ইউজার নেম ও পাসওয়ার্ড দিন");
+
+    const snap = await rdb.ref('users/' + user).once('value');
+    if (snap.exists()) return alert("এই ইউজার আছে!");
+
+    await rdb.ref('users/' + user).set({ 
+        pass: pass, 
+        joinDate: new Date().toLocaleDateString('bn-BD') 
+    });
+
+    alert("রেজিস্ট্রেশন সফল!");
+    loginUser(user);
+}
+
+async function handleLogin() {
+    const user = document.getElementById('login-user').value.trim();
+    const pass = document.getElementById('login-pass').value;
+
+    if(!user || !pass) return alert("ঘরগুলো পূরণ করুন");
+
+    const snap = await rdb.ref('users/' + user).once('value');
+    if(snap.exists()){
+        const userData = snap.val();
+        if(userData.pass === pass) {
+            loginUser(user);
+        } else {
+            alert("ভুল পাসওয়ার্ড!");
+        }
+    } else {
+        alert("ইউজার পাওয়া যায়নি! বড়/ছোট অক্ষর ঠিক করে লিখুন।");
+    }
+}
+
+function loginUser(user) { 
+    localStorage.setItem('activeUserPRO', user); 
+    // সরাসরি মেইন অ্যাপে রিডাইরেক্ট
+    window.location.reload(); 
+}
+
+function toggleAuth(isReg) {
+    document.getElementById('auth-title').innerText = isReg ? "রেজিস্ট্রেশন" : "লগইন";
+    document.getElementById('reg-fields').classList.toggle('hidden', !isReg);
+    document.getElementById('login-fields').classList.toggle('hidden', isReg);
+}
+// --- ৪. ডেইলি হিসাব লজিক (Home Page) ---
+function startApp() {
+    document.getElementById('auth-screen').classList.add('hidden');
+    document.getElementById('main-app').classList.remove('hidden');
+    document.getElementById('u-char').innerText = currentUser[0].toUpperCase();
+    loadDailyData(currentFilter);
+}
+
+async function saveDaily() {
+    const desc = document.getElementById('daily-desc').value.trim();
+    const amt = Number(document.getElementById('daily-amt').value);
+    if(!desc || amt <= 0) return;
+    await rdb.ref('daily_records/' + currentUser).push({
+        desc, amt, ts: Date.now(),
+        date: new Date().toISOString().split('T')[0]
+    });
+    document.getElementById('daily-desc').value = ""; document.getElementById('daily-amt').value = "";
+    loadDailyData(currentFilter);
+}
+
+async function loadDailyData(filter) {
+    currentFilter = filter;
+    const snap = await rdb.ref('daily_records/' + currentUser).once('value');
+    const records = snap.val() ? Object.values(snap.val()) : [];
+    
+    const now = new Date();
+    const today = now.toISOString().split('T')[0];
+    
+    let filtered = records;
+    let label = "আজকের খরচ";
+
+    if(filter === 'today') filtered = records.filter(r => r.date === today);
+    else if(filter === 'week') { filtered = records.filter(r => r.ts >= (Date.now() - 7*86400000)); label = "৭ দিনের খরচ"; }
+    else if(filter === 'month') { filtered = records.filter(r => r.date.startsWith(today.substring(0,7))); label = "এই মাসের খরচ"; }
+    else if(filter === 'year') { filtered = records.filter(r => r.date.startsWith(today.substring(0,4))); label = "এই বছরের খরচ"; }
+
+    const total = filtered.reduce((sum, r) => sum + r.amt, 0);
+    document.getElementById('total-summary-amt').innerText = total;
+    document.getElementById('view-title').innerText = label;
+
+    const list = document.getElementById('daily-list'); list.innerHTML = "";
+    filtered.sort((a,b) => b.ts - a.ts).forEach(r => {
+        list.innerHTML += `
+            <div class="bg-white p-5 rounded-2xl flex justify-between items-center shadow-sm border-l-4 border-indigo-500">
+                <div><p class="font-bold text-slate-800">${r.desc}</p><p class="text-[8px] text-slate-400 uppercase font-black">${r.date}</p></div>
+                <p class="text-lg font-black text-indigo-600">৳${r.amt}</p>
+            </div>`;
     });
 }
 
-/**
- * সাব-সিস্টেমের এন্ট্রি সংরক্ষণ বা হালনাগাদ করে।
- * M1/M3: Add (সংযোজন) এবং Update লজিক বাস্তবায়িত।
- * M2: Bazar List (isFinalExpense: false) সেভ বা আপডেট করে।
- */
-const saveSubEntry = async (sub) => {
-    if (!currentUser || managerLocked) return showCustomAlert("ম্যানেজার লক করা আছে।");
+async function undoDaily() {
+    const snap = await rdb.ref('daily_records/' + currentUser).limitToLast(1).once('value');
+    if(snap.exists() && confirm("শেষ এন্ট্রি মুছবেন?")) {
+        await rdb.ref('daily_records/' + currentUser + '/' + Object.keys(snap.val())[0]).remove();
+        loadDailyData(currentFilter);
+    }
+}
 
-    const descEl = document.getElementById('sub-desc');
-    const amtEl = document.getElementById('sub-amt');
-    const memberEl = document.getElementById('sub-member');
+// --- ৫. ম্যানেজারি হিসাব সাব-সিস্টেম (এডভান্সড) ---
+function openManager() { document.getElementById('manager-screen').classList.remove('hidden'); loadManagerHome(); }
+function closeManager() { document.getElementById('manager-screen').classList.add('hidden'); }
+
+async function loadManagerHome() {
+    const snap = await rdb.ref('manager/'+currentUser).once('value');
+    const d = snap.val() || {};
+    const tTaka = d.m1 ? Object.values(d.m1).reduce((s,x)=>s+x.amt, 0) : 0;
+    const tExp = d.m2 ? Object.values(d.m2).reduce((s,x)=>s+x.amt, 0) : 0;
+    const tMeal = d.m3 ? Object.values(d.m3).reduce((s,x)=>s+x.amt, 0) : 0;
     
-    let desc = descEl ? descEl.value.trim() : '';
-    let amt = parseFloat(amtEl.value);
-    let member = memberEl ? memberEl.value : currentUser;
+    document.getElementById('m-total-taka').innerText = tTaka;
+    document.getElementById('m-total-exp').innerText = tExp;
+    document.getElementById('m-total-meal').innerText = tMeal;
+    document.getElementById('m-rate').innerText = tMeal > 0 ? (tExp / tMeal).toFixed(2) : "0.00";
+}
+
+// সাব স্ক্রিন কন্ট্রোল (M1, M2, M3, M4)
+let activeSub = '';
+function openSub(title, type) {
+    activeSub = type;
+    document.getElementById('sub-title').innerText = title;
+    document.getElementById('sub-screen').classList.remove('hidden');
+    renderSubInputs(type);
+    loadSubList(type);
+}
+
+function closeSub() { document.getElementById('sub-screen').classList.add('hidden'); }
+
+async function renderSubInputs(type) {
+    const area = document.getElementById('dynamic-inputs'); area.innerHTML = "";
+    if(type === 'm1' || type === 'm3') {
+        area.innerHTML = `
+            <input type="text" id="s-name" placeholder="সদস্যের নাম" class="w-full p-4 bg-slate-50 rounded-2xl outline-none font-bold" ${type === 'm3' ? 'list="m1-names"' : ''}>
+            <input type="number" id="s-amt" placeholder="${type==='m1' ? 'টাকা' : 'মোট মিল'}" class="w-full p-4 bg-slate-50 rounded-2xl outline-none font-black text-2xl">
+            <datalist id="m1-names"></datalist>`;
+        if(type === 'm3') { // M1 থেকে নাম পপুলেট করা
+            const snap = await rdb.ref(`manager/${currentUser}/m1`).once('value');
+            const names = snap.exists() ? [...new Set(Object.values(snap.val()).map(x => x.name))] : [];
+            const dl = document.getElementById('m1-names');
+            names.forEach(n => dl.innerHTML += `<option value="${n}">`);
+        }
+    } else if(type === 'm2') {
+        area.innerHTML = `
+            <input type="text" id="s-desc" placeholder="খরচের বিবরণ" class="w-full p-4 bg-slate-50 rounded-2xl outline-none font-bold">
+            <input type="number" id="s-amt" placeholder="টাকার পরিমাণ" class="w-full p-4 bg-slate-50 rounded-2xl outline-none font-black text-2xl">`;
+    }
     
-    if (isNaN(amt) || amt === 0) return showCustomAlert("সঠিক টাকার/মিল/ডিমের পরিমাণ দিন।");
+    document.getElementById('sub-add-btn').onclick = () => saveSubEntry(type);
+}
+
+async function saveSubEntry(type) {
+    const amt = Number(document.getElementById('s-amt').value);
+    if(amt <= 0) return;
+    let data = { amt, ts: Date.now() };
+    if(type === 'm1' || type === 'm3') data.name = document.getElementById('s-name').value.trim();
+    if(type === 'm2') data.desc = document.getElementById('s-desc').value.trim();
+    
+    await rdb.ref(`manager/${currentUser}/${type}`).push(data);
+    loadSubList(type); loadManagerHome();
+}
+
+async function loadSubList(type) {
+    const snap = await rdb.ref(`manager/${currentUser}/${type}`).once('value');
+    const list = document.getElementById('sub-list'); list.innerHTML = "";
+    let total = 0;
+    if(snap.exists()) {
+        Object.entries(snap.val()).reverse().forEach(([id, val]) => {
+            total += val.amt;
+            list.innerHTML += `
+                <div class="bg-white p-5 rounded-2xl flex justify-between items-center shadow-sm">
+                    <div>
+                        <p class="font-black text-slate-800">${val.name || val.desc}</p>
+                        <p class="text-[9px] text-slate-400">${new Date(val.ts).toLocaleDateString()}</p>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <p class="font-black text-indigo-600">${val.amt}</p>
+                        <button onclick="deleteSub('${type}','${id}')" class="text-rose-400"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                </div>`;
+        });
+    }
+    document.getElementById('sub-total-label').innerText = "Total: " + total;
+}
+
+// M4 (মিল রেট ও ফাইনাল হিসাব) লজিক
+async function openM4() {
+    activeSub = 'm4';
+    document.getElementById('sub-title').innerText = "মিল রেট ও রিপোর্ট";
+    document.getElementById('sub-screen').classList.remove('hidden');
+    document.getElementById('sub-input-area').classList.add('hidden');
+    
+    const snap = await rdb.ref('manager/'+currentUser).once('value');
+    const d = snap.val() || {};
+    const tExp = d.m2 ? Object.values(d.m2).reduce((s,x)=>s+x.amt, 0) : 0;
+    const tMeal = d.m3 ? Object.values(d.m3).reduce((s,x)=>s+x.amt, 0) : 0;
+    const rate = tMeal > 0 ? (tExp / tMeal) : 0;
+
+    const list = document.getElementById('sub-list'); list.innerHTML = "";
+    const m1Data = d.m1 ? Object.values(d.m1) : [];
+    const m3Data = d.m3 ? Object.values(d.m3) : [];
+    const names = [...new Set(m1Data.map(x => x.name))];
+
+    names.forEach(n => {
+        const uTaka = m1Data.filter(x => x.name === n).reduce((s,x)=>s+x.amt, 0);
+        const uMeal = m3Data.filter(x => x.name === n).reduce((s,x)=>s+x.amt, 0);
+        const uCost = uMeal * rate;
+        const diff = uTaka - uCost;
+
+        list.innerHTML += `
+            <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-3">
+                <div class="flex justify-between items-center border-b pb-2">
+                    <p class="font-black text-indigo-600">${n}</p>
+                    <p class="text-xs font-bold text-slate-400">মিল: ${uMeal}</p>
+                </div>
+                <div class="grid grid-cols-2 text-[11px] font-bold text-slate-500">
+                    <p>জমা: ৳${uTaka}</p>
+                    <p>খরচ: ৳${uCost.toFixed(1)}</p>
+                </div>
+                <div class="pt-2 text-center">
+                    ${diff >= 0 ? 
+                        `<p class="text-emerald-500 font-black">ম্যানেজার দিবে: ৳${diff.toFixed(1)}</p>` : 
+                        `<p class="text-rose-500 font-black">ম্যানেজার পাবে: ৳${Math.abs(diff).toFixed(1)}</p>`}
+                </div>
+            </div>`;
+    });
+}
+
+// --- ৬. ডিমের হিসাব (স্টক লজিক) ---
+async function openEgg() {
+    activeSub = 'egg';
+    document.getElementById('sub-title').innerText = "ডিমের হিসাব";
+    document.getElementById('sub-screen').classList.remove('hidden');
+    document.getElementById('sub-input-area').classList.remove('hidden');
+    document.getElementById('dynamic-inputs').innerHTML = `
+        <select id="e-type" class="w-full p-4 bg-slate-50 rounded-2xl outline-none font-bold">
+            <option value="buy">ডিম কেনা (Stock In)</option>
+            <option value="use">ডিম খরচ (Stock Out)</option>
+        </select>
+        <input type="number" id="e-qty" placeholder="সংখ্যা (টি)" class="w-full p-4 bg-slate-50 rounded-2xl outline-none font-black text-2xl">`;
+    
+    document.getElementById('sub-add-btn').onclick = saveEgg;
+    loadEggList();
+}
+
+async function saveEgg() {
+    const type = document.getElementById('e-type').value;
+    const qty = Number(document.getElementById('e-qty').value);
+    if(qty <= 0) return;
+    await rdb.ref(`manager/${currentUser}/eggs`).push({ type, qty, ts: Date.now() });
+    loadEggList();
+}
+
+async function loadEggList() {
+    const snap = await rdb.ref(`manager/${currentUser}/eggs`).once('value');
+    const list = document.getElementById('sub-list'); list.innerHTML = "";
+    let stock = 0;
+    if(snap.exists()){
+        Object.entries(snap.val()).reverse().forEach(([id, e]) => {
+            if(e.type === 'buy') stock += e.qty; else stock -= e.qty;
+            list.innerHTML += `
+                <div class="bg-white p-4 rounded-2xl flex justify-between items-center shadow-sm">
+                    <p class="font-bold text-slate-700">${e.type==='buy'?'কিনেছে':'খরচ'}</p>
+                    <p class="font-black ${e.type==='buy'?'text-emerald-500':'text-rose-500'}">${e.qty} টি</p>
+                </div>`;
+        });
+    }
+    document.getElementById('sub-total-label').innerText = "বর্তমানে আছে: " + stock + " টি";
+}
+
+// --- ৭. ইউটিলিটি ফাংশনস ---
+function toggleSidebar(s) { document.getElementById('sidebar').classList.toggle('active', s); document.getElementById('sidebar-overlay').classList.toggle('hidden', !s); }
+function applyFilter(f) { loadDailyData(f); toggleSidebar(false); }
+function closeSub() { document.getElementById('sub-screen').classList.add('hidden'); document.getElementById('sub-input-area').classList.remove('hidden'); }
+async function resetManager() { if(confirm("পুরো ম্যানেজারি হিসাব রিসেট হবে! নিশ্চিত?")) { await rdb.ref('manager/'+currentUser).remove(); loadManagerHome(); } }
+async function deleteSub(t, id) { if(confirm("মুছে ফেলবেন?")) { await rdb.ref(`manager/${currentUser}/${t}/${id}`).remove(); loadSubList(t); loadManagerHome(); } }
+async function showProfile() { 
+    const s = await rdb.ref('users/'+currentUser).once('value');
+    document.getElementById('p-name').innerText = currentUser.toUpperCase();
+    document.getElementById('p-avatar').innerText = currentUser[0].toUpperCase();
+    document.getElementById('p-join').innerText = s.val().joinDate;
+    document.getElementById('profile-screen').classList.remove('hidden'); 
+}
+function closeProfile() { document.getElementById('profile-screen').classList.add('hidden'); }
+
+// শর্টকাট বাটন বাইন্ডিং
+function openM1() { openSub("টাকা জমা (M1)", "m1"); }
+function openM2() { openSub("বাজার খরচ (M2)", "m2"); }
+function openM3() { openSub("মিল সংখ্যা (M3)", "m3"); }
+// লগআউট ফাংশন যা ইউজারকে বের করে দিবে
+function handleLogout() {
+    if(confirm("আপনি কি নিশ্চিতভাবে লগআউট করতে চান?")) {
+        // ফোন থেকে ইউজারের লগইন তথ্য মুছে ফেলা
+        localStorage.removeItem('activeUserPRO');
+        
+        // পেজটি আবার লোড করা যাতে লগইন স্ক্রিন চলে আসে
+        window.location.reload();
+    }
+    }
+// ডাউনলোড ফিক্স করার ফাংশন
+async function startDownload() {
+    // আপনার গিটহাবের সেই ডাইরেক্ট লিঙ্ক
+    const apkUrl = "https://github.com/myw4371-a11y/Amar-hisab/raw/refs/heads/main/app-release.apk";
+    
+    alert("ডাউনলোড শুরু হচ্ছে, দয়া করে অপেক্ষা করুন...");
 
     try {
-        const ref = database.ref('manager_data/' + currentUser + '/' + sub);
-
-        // --- এডিটিং/হালনাগাদ মোড (M1, M2, M3, Egg সবকিছুর জন্য) ---
-        if (currentKeyToUpdate) {
-            // শুধুমাত্র আপডেটের জন্য
-            const updateData = {
-                amount: amt,
-                timestamp: new Date().toISOString(),
-            };
-            if (descEl) updateData.desc = desc;
-            if (memberEl) updateData.member = member;
-            
-            await ref.child(currentKeyToUpdate).update(updateData);
-            showCustomAlert(`এন্ট্রি সফলভাবে হালনাগাদ করা হয়েছে!`);
-            currentKeyToUpdate = null; // এডিটিং মোড বন্ধ
-            document.getElementById('sub-add-btn').textContent = 'সংরক্ষণ করুন';
-        } 
-        // --- নতুন এন্ট্রি বা সংযোজন মোড ---
-        else {
-             // M1/M3: মেম্বার সিলেক্ট না করা হলে সংযোজন লজিক
-            if ((sub === 'M1' || sub === 'M3') && !member) {
-                if (!currentMemberKey) return showCustomAlert("সংযোজনের জন্য পূর্বে কোনো মেম্বার এন্ট্রি পাওয়া যায়নি। মেম্বার সিলেক্ট করুন।");
-                
-                // সর্বশেষ মেম্বারের এন্ট্রিতে সংযোজন
-                const lastEntryRef = ref.child(currentMemberKey);
-                const snapshot = await lastEntryRef.once('value');
-                const lastEntry = snapshot.val();
-                
-                if (lastEntry) {
-                    await lastEntryRef.update({
-                        amount: lastEntry.amount + amt, // সংযোজন
-                        timestamp: new Date().toISOString(),
-                    });
-                    showCustomAlert(`৳${formatTaka(amt)} / ${amt} মিল সফলভাবে সংযোজন করা হয়েছে!`);
-                } else {
-                    return showCustomAlert("সংযোজনের জন্য সর্বশেষ এন্ট্রি পাওয়া যায়নি।");
-                }
-            } 
-            // M1, M2, M3, Egg: নতুন সাধারণ এন্ট্রি
-            else {
-                if (sub === 'M1' && !desc) return showCustomAlert("জমার কারণ লিখুন।");
-                if ((sub === 'M1' || sub === 'M3') && !member) return showCustomAlert("মেম্বার নির্বাচন করুন।");
-
-                const entryData = {
-                    desc: desc || (sub === 'M3' ? 'মিল এন্ট্রি' : 'অনির্দিষ্ট খরচ'),
-                    amount: amt,
-                    timestamp: new Date().toISOString(),
-                    member: member,
-                    // M2 এর জন্য, এটি শপিং লিস্ট (isFinalExpense: false) বা স্থায়ী খরচ (isFinalExpense: true) হবে
-                    isFinalExpense: (sub === 'M2' && !desc && amt > 0) ? true : (sub === 'M2' ? false : true),
-                };
-                
-                const newEntry = await ref.push(entryData);
-                if (sub === 'M1' || sub === 'M3') {
-                     // সংযোজন লজিকের জন্য key সেভ করা
-                    currentMemberKey = newEntry.key; 
-                }
-                showCustomAlert("এন্ট্রি সফলভাবে যোগ করা হয়েছে!");
-            }
-        }
-
-        // ইনপুট রিসেট
-        if (descEl) descEl.value = '';
-        if (amtEl) amtEl.value = '';
-        if (memberEl) memberEl.value = '';
-
-    } catch (error) {
-        console.error("Saving sub entry failed:", error);
-        showCustomAlert("এন্ট্রি সংরক্ষণ ব্যর্থ হয়েছে।");
+        const response = await fetch(apkUrl);
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'Amar_Hisab_V3.apk'; // ফোনে এই নামে সেভ হবে
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+    } catch (e) {
+        // যদি উপরের কোড কাজ না করে তবে সরাসরি লিঙ্কে নিয়ে যাবে
+        window.location.href = apkUrl;
     }
-}
-
-/**
- * সাব-সিস্টেমের এন্ট্রি ইনপুট বক্সে লোড করে (ক্লিক টু এডিট)।
- * @param {Event} e
- */
-const loadSubEntry = (e) => {
-    const item = e.currentTarget; 
-    
-    currentKeyToUpdate = item.getAttribute('data-key');
-    const sub = item.getAttribute('data-sub');
-    const desc = item.getAttribute('data-desc');
-    const amount = item.getAttribute('data-amount');
-    const member = item.getAttribute('data-member');
-    
-    // M2 তে স্থায়ী খরচ এডিট করা যাবে না
-    if (sub === 'M2' && item.getAttribute('data-final') === 'true') {
-        currentKeyToUpdate = null;
-        return showCustomAlert("এটি একটি স্থায়ী খরচ এন্ট্রি। এটি পরিবর্তন করা যাবে না।");
-    }
-
-    const descEl = document.getElementById('sub-desc');
-    const amtEl = document.getElementById('sub-amt');
-    const memberEl = document.getElementById('sub-member');
-
-    // ইনপুট বক্সে ডেটা লোড করা
-    if (descEl) descEl.value = desc;
-    if (amtEl) amtEl.value = parseFloat(amount);
-    if (memberEl) memberEl.value = member;
-    
-    document.getElementById('sub-add-btn').textContent = 'হালনাগাদ করুন';
-    
-    showCustomAlert(`'${desc || sub}' (${formatTaka(parseFloat(amount))}) লোড করা হয়েছে। ডেটা আপডেট করুন।`);
-}
-
-/**
- * বাজার লিস্টের মোট খরচকে স্থায়ী M2 খরচ হিসেবে সেভ করে। (Save As বাটন)
- */
-const saveBazarAsExpense = async () => {
-    if (activeSub !== 'M2' || managerLocked) return;
-
-    // মোট বাজারের টোটাল নেওয়া
-    const totalEl = document.getElementById('bazar-grand-total');
-    const totalAmount = parseFloat(totalEl.textContent.replace(/[৳,]/g, '')) || 0;
-
-    if (totalAmount <= 0) {
-        showCustomAlert("খরচ করার মতো কোনো বাজার এন্ট্রি নেই।");
-        return;
-    }
-    
-    showCustomConfirm(`মোট ৳${formatTaka(totalAmount)} স্থায়ী খরচ হিসেবে সংরক্ষণ করবেন? বর্তমান শপিং লিস্টের এন্ট্রিগুলো মুছে যাবে।`, async () => {
-        try {
-            const ref = database.ref('manager_data/' + currentUser + '/M2');
-            
-            // ১. একটি নতুন স্থায়ী খরচ এন্ট্রি তৈরি করা (isFinalExpense: true)
-            await ref.push({
-                desc: `বাজার খরচ সংরক্ষণ (${new Date().toLocaleDateString('bn-BD')})`,
-                amount: totalAmount,
-                timestamp: new Date().toISOString(),
-                member: currentUser, 
-                isFinalExpense: true, // স্থায়ী খরচ
-            });
-
-            // ২. বাজার এন্ট্রিগুলো মুছে ফেলা (isFinalExpense: false এন্ট্রিগুলি)
-            const snapshot = await ref.once('value');
-            if (snapshot.exists()) {
-                snapshot.forEach(childSnapshot => {
-                    const entry = childSnapshot.val();
-                    if (childSnapshot.key !== 'initial' && !entry.isFinalExpense) {
-                         database.ref('manager_data/' + currentUser + '/M2/' + childSnapshot.key).remove();
-                    }
-                });
-            }
-
-            showCustomAlert(`৳${formatTaka(totalAmount)} সফলভাবে স্থায়ী খরচ হিসেবে সংরক্ষণ করা হয়েছে। শপিং লিস্ট রিসেট হয়েছে।`);
-            loadManagerSummary(); 
-        } catch (error) {
-            console.error("Save As Expense failed:", error);
-            showCustomAlert("Save As (খরচ) ব্যর্থ হয়েছে।");
         }
-    });
-}
-
-// --- ৫. সবার জন্য যোগ (Add For All) লজিক (M1/M3) ---
-
-const openAddForAllDialog = () => {
-    if (activeSub !== 'M1' && activeSub !== 'M3') return;
-    const title = activeSub === 'M1' ? 'সবার জন্য জমা যোগ' : 'সবার জন্য মিল যোগ';
-    const placeholder = activeSub === 'M1' ? 'টাকার পরিমাণ (৳)' : 'মিল সংখ্যা';
-    
-    document.getElementById('add-for-all-title').textContent = title;
-    document.getElementById('add-for-all-amt').placeholder = placeholder;
-    document.getElementById('add-for-all-dialog').classList.remove('hidden');
-}
-
-const closeAddForAllDialog = () => {
-    document.getElementById('add-for-all-dialog').classList.add('hidden');
-    document.getElementById('add-for-all-amt').value = '';
-}
-
-const saveForAll = async () => {
-    if (!currentUser || managerLocked) return showCustomAlert("ম্যানেজার লক করা আছে।");
-    const sub = activeSub;
-    const amount = parseFloat(document.getElementById('add-for-all-amt').value);
-
-    if (isNaN(amount) || amount === 0) return showCustomAlert("সঠিক পরিমাণ দিন।");
-
-    closeAddForAllDialog();
-    showCustomConfirm(`সকল সক্রিয় মেম্বারের জন্য ${amount} ${sub === 'M1' ? 'টাকা' : 'মিল'} যোগ করবেন?`, async () => {
-        try {
-            const membersSnapshot = await database.ref('manager_data/' + currentUser + '/members').once('value');
-            const members = membersSnapshot.val() || {};
-            const ref = database.ref('manager_data/' + currentUser + '/' + sub);
-            const timestamp = new Date().toISOString();
-            
-            let count = 0;
-            for (const memberKey in members) {
-                if (members[memberKey].isActive) {
-                    const desc = sub === 'M1' ? 'সবার জন্য এককালীন জমা' : 'সবার জন্য এককালীন মিল';
-                    
-                    await ref.push({
-                        desc: desc,
-                        amount: amount,
-                        timestamp: timestamp,
-                        member: memberKey, 
-                        isFinalExpense: true, // M1/M3 এ সব এন্ট্রিই চূড়ান্ত
-                    });
-                    count++;
-                }
-            }
-
-            if (count > 0) {
-                showCustomAlert(`${count} জন মেম্বারের জন্য সফলভাবে যোগ করা হয়েছে!`);
-            } else {
-                showCustomAlert("কোনো সক্রিয় মেম্বার পাওয়া যায়নি।");
-            }
-        } catch (error) {
-            console.error("Save For All failed:", error);
-            showCustomAlert("যোগ করা ব্যর্থ হয়েছে।");
-        }
-    });
-}
-
-
-// --- ৬. অন্যান্য কন্ট্রোল (Telegram, M1, M2, M3, Egg ওপেন ফাংশন) ---
-// ... (openM1, openM2, openM3, openM4, openEgg, openAddMemberDialog, closeAddMemberDialog, addNewMember, resetManager, joinTelegram - এই সব ফাংশন আগের মতোই থাকবে, শুধু joinTelegram এ আপনার Telegram ID দেওয়া লাগবে) ...
-
-
-// --- ৭. DOMContentLoaded এবং Initialization ---
-// ... (DOMContentLoaded function remains unchanged)
-
-// --- ফাংশনগুলো HTML এর জন্য এক্সপোজ করা ---
-// ... (window.toggleAuth, handleLogin, etc.)
-
-window.saveSubEntry = saveSubEntry;
-window.loadSubEntry = loadSubEntry;
-window.saveBazarAsExpense = saveBazarAsExpense;
-window.openAddForAllDialog = openAddForAllDialog;
-window.closeAddForAllDialog = closeAddForAllDialog;
-window.saveForAll = saveForAll;
-window.openSub = openSub;
-window.closeSub = closeSub;
