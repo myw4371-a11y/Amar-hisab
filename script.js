@@ -3,7 +3,7 @@ const firebaseConfig = {
     apiKey: "AIzaSyAyNkZvxqdPsa2E2SXnYVsZe1wENJF1I7E",
     authDomain: "amar-hishab-pro.firebaseapp.com",
     projectId: "amar-hishab-pro",
-    databaseURL: "https://amar-hishab-pro-default-rtdb.asia-southeast1.firebaseio.com" 
+    databaseURL: "https://amar-hishab-pro-default-rtdb.asia-southeast1.firebasedatabase.app/" 
 };
 
 firebase.initializeApp(firebaseConfig);
